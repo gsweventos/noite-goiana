@@ -93,8 +93,8 @@ export type PaymentStatus = 'pendente' | 'aprovado' | 'rejeitado' | 'estornado' 
 
 export interface Payment {
   id: string;
-  pagbankOrderId?: string; // id do pedido retornado pelo PagBank
-  pagbankCheckoutId?: string;
+  asaasPaymentId?: string; // id do pedido retornado pelo Asaas
+  asaasCheckoutId?: string;
   eventoId: string;
   compradorNome: string;
   compradorCpf: string;

@@ -22,13 +22,13 @@ Site oficial de venda de ingressos da **Noite Goiana** — festa de som automoti
           │ Firestore (leitura pública de /events)          │ (conta de serviço)
           ▼                                                ▼
 ┌─────────────────────┐                       ┌───────────────────────────┐
-│      Firestore       │ ◀───────────────────  │        PagBank         │
+│      Firestore       │ ◀───────────────────  │        Asaas         │
 │  events, tickets,     │      Webhook          │   Checkout Pro + API        │
 │  payments, checkins   │                       └───────────────────────────┘
 └─────────────────────┘
 ```
 
-Regra central de segurança: **o frontend nunca cria ingressos, nunca confirma pagamentos e nunca fala diretamente com a API do PagBank.** Ele só chama o backend (`/backend`, hospedado no Vercel), que é o único lugar com o Access Token do PagBank e com credenciais para escrever nas coleções sensíveis do Firestore (`tickets`, `payments`, `checkins`).
+Regra central de segurança: **o frontend nunca cria ingressos, nunca confirma pagamentos e nunca fala diretamente com a API do Asaas.** Ele só chama o backend (`/backend`, hospedado no Vercel), que é o único lugar com a Chave de API do Asaas e com credenciais para escrever nas coleções sensíveis do Firestore (`tickets`, `payments`, `checkins`).
 
 O site roda **sem nenhum backend configurado**: enquanto o `.env` do frontend não tiver credenciais do Firebase, os serviços em `src/services/` usam os dados de `src/config/event.ts` em memória (`USE_MOCK = true`), então dá pra ver a interface inteira funcionando localmente antes de configurar qualquer coisa.
 
@@ -56,14 +56,14 @@ noite-goiana/
 │   └── api/
 │       ├── _lib/                       # Módulos compartilhados (não viram rota)
 │       │   ├── firebaseAdmin.ts          # Firebase Admin SDK (conta de serviço)
-│       │   ├── pagbank.ts             # Cliente do PagBank
+│       │   ├── asaas.ts             # Cliente do Asaas
 │       │   ├── qr.ts                       # Assinatura HMAC do QR Code
 │       │   ├── pdf.ts                       # Geração do PDF do ingresso
 │       │   ├── email.ts                      # Envio do ingresso por e-mail (SMTP)
 │       │   └── cors.ts                        # CORS compartilhado
 │       ├── payments/
 │       │   ├── create-preference.ts             # POST — cria a cobrança
-│       │   ├── webhook.ts                        # POST — confirmação do PagBank
+│       │   ├── webhook.ts                        # POST — confirmação do Asaas
 │       │   └── [id]/status.ts                     # GET — status de um pagamento
 │       ├── checkin/
 │       │   └── validate.ts                          # POST — valida um QR Code
@@ -145,12 +145,12 @@ O backend precisa de credenciais para escrever no Firestore de fora do ambiente 
 2. Clique em **"Gerar nova chave privada"** → baixa um arquivo `.json`
 3. Guarde esse arquivo — você vai usar três campos dele (`project_id`, `client_email`, `private_key`) na próxima etapa
 
-### 5.2 Pegar o token de integração do PagBank
+### 5.2 Pegar a chave de API do Asaas
 
-1. Crie/acesse sua conta em [minhaconta.pagseguro.uol.com.br](https://minhaconta.pagseguro.uol.com.br) ou [pagbank.com.br](https://pagbank.com.br)
-2. No painel, procure por **"Integrações"** → **"Token de integração"** (às vezes em "Minha Conta → Preferências → Integrações")
-3. Copie o token — é ele que vai virar a variável `PAGBANK_TOKEN`
-4. Confirme também que sua conta tem uma **chave Pix cadastrada** (Pix → Cadastrar chave), senão o Pix não aparece como opção pro comprador
+1. Crie/acesse sua conta em [asaas.com](https://www.asaas.com)
+2. No painel, vá em **Menu do Usuário → Integrações → Chaves de API**
+3. Copie a chave — é ela que vai virar a variável `ASAAS_API_KEY`
+4. Confirme também que sua conta tem uma **chave Pix cadastrada**, senão o Pix não aparece como opção pro comprador
 
 ### 5.3 Publicar o backend no Vercel
 
@@ -158,7 +158,9 @@ O backend precisa de credenciais para escrever no Firestore de fora do ambiente 
 2. **Add New → Project** → importe o repositório `noite-goiana`
 3. Em **"Root Directory"**, selecione a pasta **`backend`** (importante — o Vercel não deve tentar buildar o frontend, só essa pasta)
 4. Em **Environment Variables**, cadastre (usando o `.env.example` de `backend/` como guia):
-   - `PAGBANK_TOKEN`
+   - `ASAAS_API_KEY`
+   - `ASAAS_ENV` = `production`
+   - `ASAAS_WEBHOOK_TOKEN` (um texto aleatório com 32+ caracteres, sem espaços — você escolhe, ver 5.5 abaixo)
    - `PUBLIC_API_URL` (preencha depois do primeiro deploy, com a URL que o Vercel gerar + `/api`)
    - `PUBLIC_APP_URL` = `https://www.noitegoiana.com.br`
    - `QR_SECRET` (qualquer texto longo e aleatório só seu)
@@ -174,9 +176,16 @@ Cadastre `VITE_API_BASE_URL` com essa mesma URL (`https://noite-goiana-backend.v
 - No seu `.env` local (se for testar localmente)
 - Como *Secret* no GitHub (**Settings → Secrets and variables → Actions**), para o build do GitHub Pages usar
 
-### 5.5 Webhook no PagBank
+### 5.5 Cadastrar o Webhook no Asaas
 
-Diferente do Mercado Pago, o PagBank não tem uma tela separada de "cadastrar webhook" — a URL de notificação é enviada automaticamente em cada Checkout criado (campo `payment_notification_urls`, já configurado em `backend/api/payments/create-preference.ts` apontando para `PUBLIC_API_URL + /payments/webhook`). Não precisa cadastrar nada manualmente no painel do PagBank.
+Diferente do Mercado Pago/PagBank, o Asaas exige que o Webhook seja cadastrado **uma única vez** no painel (não é enviado a cada cobrança):
+
+1. No painel do Asaas → **Menu do Usuário → Integrações → Webhooks → Novo Webhook**
+2. **URL**: `https://noite-goiana-backend.vercel.app/api/payments/webhook`
+3. **E-mail para notificações de erro**: o seu
+4. **Token de autenticação**: cole o **mesmo valor** que você colocou em `ASAAS_WEBHOOK_TOKEN` no Vercel (etapa 5.3) — é assim que o backend confirma que a notificação é mesmo do Asaas
+5. **Eventos**: marque pelo menos `PAYMENT_RECEIVED` e `PAYMENT_CONFIRMED` (pode marcar todos os de cobrança, sem problema)
+6. Salve e deixe o Webhook **ativado**
 
 ---
 
@@ -203,9 +212,9 @@ Depois, em Settings → Pages, confirme o domínio customizado e ative "Enforce 
 
 1. Usuário escolhe o lote → preenche nome, CPF, telefone, e-mail (`Checkout.tsx`)
 2. Frontend chama `POST /api/payments/create-preference` → backend cria um `payments/{id}` com `status: "pendente"` e retorna a URL do Checkout Pro
-3. Usuário é redirecionado ao PagBank e paga
-4. PagBank chama `POST /api/payments/webhook`
-5. Backend **valida a assinatura do webhook e reconsulta a API do PagBank** pelo id do pedido (nunca confia só no corpo do webhook), confirma `status === "PAID"`
+3. Usuário é redirecionado ao Asaas e paga
+4. Asaas chama `POST /api/payments/webhook`
+5. Backend **valida o token secreto do webhook e reconsulta a API do Asaas** pelo id do pagamento (nunca confia só no corpo do webhook), confirma `status === "RECEIVED"` ou `"CONFIRMED"`
 6. Dentro de uma transação Firestore: debita o lote, gera o(s) ingresso(s) com UUID + QR Code assinado (HMAC), grava em `tickets`
 7. Backend gera o PDF do ingresso e envia por e-mail (se o SMTP estiver configurado)
 8. Painel do cliente (`/painel`) já reflete o novo ingresso
@@ -221,13 +230,13 @@ Depois, em Settings → Pages, confirme o domínio customizado e ative "Enforce 
 ## 9. Segurança implementada
 
 - **Firestore Rules**: cliente só lê os próprios ingressos; escrita em `tickets`/`payments`/`checkins` é bloqueada para o client SDK (só o backend, via Admin SDK, escreve)
-- **Assinatura do webhook do PagBank**: cada notificação é validada via SHA-256 (`x-authenticity-token`) antes de qualquer processamento — notificações forjadas são descartadas
+- **Token secreto do webhook do Asaas**: cada notificação é validada comparando o header `asaas-access-token` com o valor escolhido na etapa 5.5 — notificações forjadas são descartadas
 - **Assinatura HMAC do QR Code**: impossível forjar um QR Code válido sem o `QR_SECRET`, que só existe no backend
 - **Idempotência do webhook**: reprocessar a mesma notificação não gera ingressos duplicados
 - **Transações atômicas**: geração de ingressos e check-in usam `runTransaction`, evitando overselling e reuso de QR Code
 - **Validação com Zod** em todas as entradas de API e formulários
 - **CORS restrito** ao domínio do frontend
-- **Nenhum segredo no frontend**: Access Token do PagBank, `QR_SECRET` e credenciais do Firebase Admin existem só no backend (Vercel)
+- **Nenhum segredo no frontend**: Chave de API do Asaas, `QR_SECRET` e credenciais do Firebase Admin existem só no backend (Vercel)
 
 ---
 

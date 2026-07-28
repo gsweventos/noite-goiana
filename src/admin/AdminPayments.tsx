@@ -15,13 +15,13 @@ export default function AdminPayments() {
     <>
       <Seo title="Pagamentos" />
       <h1 className="font-display text-2xl font-bold text-white">Pagamentos</h1>
-      <p className="mt-1 text-sm text-white/50">Histórico de transações processadas via PagBank.</p>
+      <p className="mt-1 text-sm text-white/50">Histórico de transações processadas via Asaas.</p>
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
         <table className="w-full text-left text-sm">
           <thead className="bg-white/[0.04] text-xs uppercase tracking-wide text-white/40">
             <tr>
-              <th className="px-4 py-3 font-medium">ID PagBank</th>
+              <th className="px-4 py-3 font-medium">ID Asaas</th>
               <th className="px-4 py-3 font-medium">Comprador</th>
               <th className="px-4 py-3 font-medium">Valor</th>
               <th className="px-4 py-3 font-medium">Data</th>
@@ -31,7 +31,7 @@ export default function AdminPayments() {
           <tbody className="divide-y divide-white/5">
             {mockPayments.map((p) => (
               <tr key={p.id} className="hover:bg-white/[0.02]">
-                <td className="px-4 py-3 font-mono text-xs text-white/70">{p.pagbankOrderId ?? "—"}</td>
+                <td className="px-4 py-3 font-mono text-xs text-white/70">{p.asaasPaymentId ?? "—"}</td>
                 <td className="px-4 py-3 text-white/70">{p.compradorNome}</td>
                 <td className="px-4 py-3 text-white/70">{formatCurrency(p.valorTotal)}</td>
                 <td className="px-4 py-3 text-white/50">{formatDateTime(p.criadoEm)}</td>

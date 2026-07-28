@@ -1,16 +1,16 @@
 /**
- * O frontend NUNCA fala diretamente com a API do PagBank nem conhece o
+ * O frontend NUNCA fala diretamente com a API do Asaas nem conhece o
  * Token de integração — isso violaria a regra de segurança do projeto
  * ("nenhuma credencial secreta no frontend"). Em vez disso, o frontend chama
  * o backend próprio (Vercel Serverless Functions, ver /backend), que:
  *
- *   1. Cria um Checkout de pagamento no PagBank usando o token guardado em
+ *   1. Cria um Checkout de pagamento no Asaas usando o token guardado em
  *      variável de ambiente do backend;
  *   2. Devolve para o frontend apenas a URL de pagamento e o id interno do
  *      pagamento;
- *   3. Recebe o webhook do PagBank de forma assíncrona, valida a assinatura
- *      e reconsulta a API do PagBank pelo id do pedido (nunca confiando só
- *      no corpo do webhook) e só então gera o ingresso.
+ *   3. Recebe o webhook do Asaas de forma assíncrona, valida o token
+ *      secreto e reconsulta a API do Asaas pelo id do pagamento (nunca
+ *      confiando só no corpo do webhook) e só então gera o ingresso.
  *
  * Ver backend/api/payments/create-preference.ts para a implementação do backend.
  */
@@ -31,7 +31,7 @@ export interface CreatePreferencePayload {
 
 export interface CreatePreferenceResponse {
   preferenceId: string;
-  initPoint: string; // URL de pagamento do Checkout PagBank
+  initPoint: string; // URL de pagamento do Checkout Asaas
   paymentId: string; // id interno (Firestore) do registro de pagamento, ainda "pendente"
 }
 

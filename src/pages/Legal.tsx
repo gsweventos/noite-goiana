@@ -10,7 +10,7 @@ export function PrivacyPolicy() {
           A Noite Goiana coleta apenas os dados necessários para viabilizar a compra e a validação de ingressos:
           nome, CPF, telefone e e-mail. Esses dados são usados exclusivamente para emissão do ingresso, comunicação
           sobre o evento e validação de entrada, e não são compartilhados com terceiros além dos provedores
-          estritamente necessários para processar o pagamento (PagBank) e a autenticação (Firebase).
+          estritamente necessários para processar o pagamento (Asaas) e a autenticação (Firebase).
         </p>
         <p className="mt-4 leading-relaxed">
           Você pode solicitar a exclusão dos seus dados a qualquer momento pelo e-mail contato@noitegoiana.com.br.

@@ -2,8 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { applyCors } from '../_lib/cors';
 import { db, admin } from '../_lib/firebaseAdmin';
-import { pagbankRequest } from '../_lib/pagbank';
-import { onlyDigits, splitPhone } from '../_lib/format';
+import { asaasRequest } from '../_lib/asaas';
+import { onlyDigits } from '../_lib/format';
 
 const createPreferenceSchema = z.object({
   eventoId: z.string().min(1),
@@ -21,11 +21,11 @@ const createPreferenceSchema = z.object({
  * POST /api/payments/create-preference
  *
  * Cria um registro de pagamento "pendente" no Firestore e um Checkout no
- * PagBank. O frontend recebe apenas a URL de pagamento (equivalente ao
- * "initPoint" do Mercado Pago) — o Access Token nunca sai do backend.
+ * Asaas. O frontend recebe apenas a URL de pagamento (equivalente ao
+ * URL de pagamento equivalente ao "initPoint" de outros gateways) — a Chave de API nunca sai do backend.
  *
  * A confirmação real do pagamento NUNCA acontece aqui: ela só é aceita via
- * webhook (ver payments/webhook.ts), reconsultando a API do PagBank.
+ * webhook (ver payments/webhook.ts), reconsultando a API do Asaas.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (applyCors(req, res)) return;
@@ -52,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const valorTotal = lote.preco * quantidade;
 
-    // 1. Cria o registro de pagamento como "pendente" ANTES de falar com o PagBank.
+    // 1. Cria o registro de pagamento como "pendente" ANTES de falar com o Asaas.
     const paymentRef = db.collection('payments').doc();
     await paymentRef.set({
       eventoId,
@@ -68,43 +68,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // 2. Cria o Checkout no PagBank.
+    // 2. Cria o Checkout no Asaas.
     const appUrl = process.env.PUBLIC_APP_URL ?? 'https://www.noitegoiana.com.br';
-    const apiUrl = process.env.PUBLIC_API_URL;
-    const { area, number } = splitPhone(comprador.telefone);
 
-    const checkout = await pagbankRequest<{ id: string; links: { rel: string; href: string }[] }>('/checkouts', {
+    const checkout = await asaasRequest<{ id: string; link: string }>('/checkouts', {
       method: 'POST',
       body: {
-        reference_id: paymentRef.id,
-        customer: {
-          name: comprador.nome,
-          email: comprador.email,
-          tax_id: onlyDigits(comprador.cpf),
-          phone: { country: '55', area, number },
+        billingTypes: ['PIX', 'CREDIT_CARD'],
+        chargeTypes: ['DETACHED'],
+        minutesToExpire: 60,
+        externalReference: paymentRef.id,
+        callback: {
+          successUrl: `${appUrl}/`,
+          cancelUrl: `${appUrl}/`,
+          expiredUrl: `${appUrl}/`,
         },
-        customer_modifiable: true,
         items: [
           {
-            reference_id: lotId,
+            externalReference: lotId,
             name: `${evento.nome} — ${lote.nome}`,
             quantity: quantidade,
-            unit_amount: Math.round(lote.preco * 100), // PagBank trabalha em centavos
+            value: lote.preco,
           },
         ],
-        payment_notification_urls: [`${apiUrl}/payments/webhook`],
-        return_url: `${appUrl}/`,
+        customerData: {
+          name: comprador.nome,
+          cpfCnpj: onlyDigits(comprador.cpf),
+          email: comprador.email,
+          phone: onlyDigits(comprador.telefone),
+        },
       },
     });
 
-    const payLink = checkout.links.find((l) => l.rel === 'PAY')?.href;
-    if (!payLink) throw new Error('PagBank não retornou o link de pagamento.');
-
-    await paymentRef.update({ pagbankCheckoutId: checkout.id });
+    await paymentRef.update({ asaasCheckoutId: checkout.id });
 
     return res.json({
       preferenceId: checkout.id,
-      initPoint: payLink,
+      initPoint: checkout.link,
       paymentId: paymentRef.id,
     });
   } catch (err) {

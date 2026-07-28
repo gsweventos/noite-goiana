@@ -22,12 +22,13 @@ export default function Home() {
     });
   }, []);
 
-  // O PagBank não aceita URLs de retorno com "#" (nosso HashRouter usa isso
-  // nas rotas internas), então ele sempre traz o usuário de volta para a raiz
-  // do site. Como o PagBank não documenta parâmetros fixos de status na
-  // volta, qualquer acesso à raiz com algum parâmetro na URL é tratado como
-  // um retorno do checkout, e a pessoa é levada direto pro painel — a
-  // confirmação real do pagamento sempre acontece via webhook, não aqui.
+  // Por simplicidade, as URLs de retorno do checkout sempre apontam para a
+  // raiz do site (nosso HashRouter usa "#" nas rotas internas, e evitamos
+  // depender de cada provedor de pagamento aceitar isso). Como o Asaas não
+  // documenta parâmetros fixos de status na volta, qualquer acesso à raiz
+  // com algum parâmetro na URL é tratado como um retorno do checkout, e a
+  // pessoa é levada direto pro painel — a confirmação real do pagamento
+  // sempre acontece via webhook, não aqui.
   useEffect(() => {
     if (window.location.search.length > 1) {
       navigate('/painel', { replace: true });

@@ -1,7 +1,7 @@
 {
   "name": "noite-goiana-backend",
   "private": true,
-  "description": "Backend da Noite Goiana rodando no Vercel: preferências de pagamento, webhook do PagBank (PagSeguro), geração de ingressos/QR Code, envio de e-mail e validação de check-in.",
+  "description": "Backend da Noite Goiana rodando no Vercel: preferências de pagamento, webhook do Asaas, geração de ingressos/QR Code, envio de e-mail e validação de check-in.",
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod",

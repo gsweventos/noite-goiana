@@ -74,7 +74,7 @@ export default function Checkout() {
       }
 
       // Fluxo real: manda o navegador de verdade para a página de pagamento
-      // do PagBank. O usuário só volta para este site depois de pagar
+      // do Asaas. O usuário só volta para este site depois de pagar
       // (ver return_url no backend) — a confirmação definitiva acontece via
       // webhook, não aqui.
       window.location.href = response.initPoint;
@@ -175,7 +175,7 @@ export default function Checkout() {
 
             <div className="flex items-center gap-2 rounded-xl bg-white/5 p-3 text-xs text-white/50">
               <ShieldCheck size={16} className="shrink-0 text-violet-400" />
-              Pagamento processado com segurança pelo PagBank. A confirmação final é validada por webhook antes da emissão do ingresso.
+              Pagamento processado com segurança pelo Asaas. A confirmação final é validada por webhook antes da emissão do ingresso.
             </div>
 
             <button
@@ -185,7 +185,7 @@ export default function Checkout() {
             >
               {step === 'pagando' ? (
                 <>
-                  <Loader2 size={16} className="animate-spin" /> Redirecionando para o PagBank...
+                  <Loader2 size={16} className="animate-spin" /> Redirecionando para o Asaas...
                 </>
               ) : (
                 `Pagar ${formatCurrency(total)}`
