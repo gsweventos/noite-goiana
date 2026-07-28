@@ -42,7 +42,7 @@ export default function Home() {
 
         <div className="mx-auto flex min-h-[88vh] max-w-3xl flex-col items-center justify-center px-4 text-center">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <Logo className="text-3xl sm:text-4xl" />
+            <Logo className="h-20 sm:h-24" />
           </motion.div>
 
           <motion.span
