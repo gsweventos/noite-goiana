@@ -4,15 +4,16 @@
  * credencial secreta no frontend"). Em vez disso, o frontend chama o backend
  * próprio (Vercel Serverless Functions, ver /backend), que:
  *
- *   1. Cria uma preference de pagamento no Mercado Pago (Checkout Pro)
- *      usando o Access Token guardado em variável de ambiente do backend;
- *   2. Devolve para o frontend apenas a URL de pagamento e o id interno do
- *      pagamento;
+ *   1. Gera o pagamento no Mercado Pago (Pix direto via API de Pagamentos,
+ *      ou Checkout Pro como alternativa) usando o Access Token guardado em
+ *      variável de ambiente do backend;
+ *   2. Devolve para o frontend só o necessário para mostrar o QR Code (Pix)
+ *      ou a URL de pagamento (Checkout Pro), mais o id interno do pagamento;
  *   3. Recebe o webhook do Mercado Pago de forma assíncrona e reconsulta a
  *      API do Mercado Pago pelo id do pagamento (nunca confiando só no
  *      corpo do webhook) e só então gera o ingresso.
  *
- * Ver backend/api/payments/create-preference.ts para a implementação do backend.
+ * Ver backend/api/payments/create-pix.ts e create-preference.ts.
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string | undefined;
@@ -35,7 +36,45 @@ export interface CreatePreferenceResponse {
   paymentId: string; // id interno (Firestore) do registro de pagamento, ainda "pendente"
 }
 
+export interface CreatePixResponse {
+  paymentId: string; // id interno (Firestore)
+  mpPaymentId: number;
+  qrCode: string; // código "Pix copia e cola"
+  qrCodeBase64: string; // imagem do QR Code, pronta para <img src="data:image/png;base64,...">
+  ticketUrl?: string;
+  expiraEm?: string;
+}
+
 export const paymentService = {
+  /**
+   * Gera um pagamento Pix DIRETO pela API do Mercado Pago — o comprador
+   * nunca sai do site, o QR Code/copia-e-cola aparece direto no checkout.
+   * Preferido em relação ao Checkout Pro (createPreference) sempre que
+   * possível.
+   */
+  async createPixPayment(payload: CreatePreferencePayload): Promise<CreatePixResponse> {
+    if (!API_BASE_URL) {
+      await new Promise((r) => setTimeout(r, 900));
+      return {
+        paymentId: `demo-${Date.now()}`,
+        mpPaymentId: 0,
+        qrCode: '00020126360014BR.GOV.BCB.PIX-DEMO-5204000053039865802BR5913Noite Goiana6009SAO PAULO62070503***6304ABCD',
+        qrCodeBase64: '',
+      };
+    }
+
+    const res = await fetch(`${API_BASE_URL}/payments/create-pix`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      throw new Error('Não foi possível gerar o Pix. Tente novamente em instantes.');
+    }
+    return res.json();
+  },
+
   async createPreference(payload: CreatePreferencePayload): Promise<CreatePreferenceResponse> {
     if (!API_BASE_URL) {
       // Modo demonstração: sem backend configurado, simulamos a resposta para

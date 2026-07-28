@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useSearchParams, Navigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Minus, Plus, ShieldCheck, Loader2, CheckCircle2 } from 'lucide-react';
+import { Minus, Plus, ShieldCheck, Loader2, CheckCircle2, Copy, Check, QrCode, CreditCard } from 'lucide-react';
 import { Seo } from '@/components/Seo';
 import { Spinner } from '@/components/Spinner';
 import { eventsService } from '@/services/eventsService';
-import { paymentService } from '@/services/paymentService';
+import { paymentService, CreatePixResponse } from '@/services/paymentService';
 import { EventItem, TicketLot } from '@/types';
 import { formatCurrency, isValidCpf, maskCpf, maskPhone } from '@/utils/format';
 
@@ -21,8 +21,8 @@ const checkoutSchema = z.object({
 });
 
 type CheckoutForm = z.infer<typeof checkoutSchema>;
-
-type Step = 'quantidade' | 'dados' | 'pagando' | 'sucesso';
+type Metodo = 'pix' | 'cartao';
+type Step = 'quantidade' | 'dados' | 'gerando' | 'pix' | 'sucesso';
 
 export default function Checkout() {
   const [searchParams] = useSearchParams();
@@ -30,11 +30,22 @@ export default function Checkout() {
 
   const [event, setEvent] = useState<EventItem | null | undefined>(undefined);
   const [quantidade, setQuantidade] = useState(1);
+  const [metodo, setMetodo] = useState<Metodo>('pix');
   const [step, setStep] = useState<Step>('quantidade');
   const [erro, setErro] = useState<string | null>(null);
+  const [pix, setPix] = useState<CreatePixResponse | null>(null);
+  const [copiado, setCopiado] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     eventsService.getMainEvent().then(setEvent);
+  }, []);
+
+  // Para de checar o status quando o componente desmontar (sai da página).
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, []);
 
   const {
@@ -54,9 +65,51 @@ export default function Checkout() {
   const restantes = lote.quantidadeTotal - lote.quantidadeVendida;
   const total = lote.preco * quantidade;
 
+  /** Fica checando o status do pagamento a cada 4s, até aprovar (ou a pessoa sair da página). */
+  function iniciarPolling(paymentId: string) {
+    pollingRef.current = setInterval(async () => {
+      try {
+        const status = await paymentService.getPaymentStatus(paymentId);
+        if (status.status === 'aprovado') {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setStep('sucesso');
+        }
+      } catch {
+        // Falha isolada de uma consulta não é motivo pra parar de tentar.
+      }
+    }, 4000);
+  }
+
   async function onSubmit(data: CheckoutForm) {
     setErro(null);
-    setStep('pagando');
+
+    if (metodo === 'pix') {
+      setStep('gerando');
+      try {
+        const response = await paymentService.createPixPayment({
+          eventoId: event!.id,
+          lotId: lote!.id,
+          quantidade,
+          comprador: data,
+        });
+        setPix(response);
+        setStep('pix');
+
+        if (response.paymentId.startsWith('demo-')) {
+          // Modo demonstração: simula aprovação depois de alguns segundos.
+          setTimeout(() => setStep('sucesso'), 4000);
+        } else {
+          iniciarPolling(response.paymentId);
+        }
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : 'Erro ao gerar o Pix.');
+        setStep('dados');
+      }
+      return;
+    }
+
+    // Cartão de crédito: mantém o fluxo de redirecionamento ao Checkout Pro.
+    setStep('gerando');
     try {
       const response = await paymentService.createPreference({
         eventoId: event!.id,
@@ -66,22 +119,23 @@ export default function Checkout() {
       });
 
       if (response.initPoint === '#checkout-demo') {
-        // Modo demonstração (sem VITE_API_BASE_URL configurado): simula a
-        // aprovação localmente, já que não existe um backend real para redirecionar.
         await new Promise((r) => setTimeout(r, 1200));
         setStep('sucesso');
         return;
       }
 
-      // Fluxo real: manda o navegador de verdade para a página de pagamento
-      // do Mercado Pago. O usuário só volta para este site depois de pagar
-      // (ver return_url no backend) — a confirmação definitiva acontece via
-      // webhook, não aqui.
       window.location.href = response.initPoint;
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao processar pagamento.');
       setStep('dados');
     }
+  }
+
+  async function copiarCodigoPix() {
+    if (!pix) return;
+    await navigator.clipboard.writeText(pix.qrCode);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2500);
   }
 
   return (
@@ -134,14 +188,36 @@ export default function Checkout() {
           </motion.div>
         )}
 
-        {(step === 'dados' || step === 'pagando') && (
+        {(step === 'dados' || step === 'gerando') && (
           <motion.form
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             onSubmit={handleSubmit(onSubmit)}
             className="mt-8 space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-6"
           >
-            <h2 className="font-display text-lg font-bold text-white">Dados do comprador</h2>
+            <h2 className="font-display text-lg font-bold text-white">Forma de pagamento</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setMetodo('pix')}
+                className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors ${
+                  metodo === 'pix' ? 'border-violet-500 bg-violet-600/10 text-white' : 'border-white/10 text-white/60 hover:border-white/20'
+                }`}
+              >
+                <QrCode size={16} /> Pix
+              </button>
+              <button
+                type="button"
+                onClick={() => setMetodo('cartao')}
+                className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition-colors ${
+                  metodo === 'cartao' ? 'border-violet-500 bg-violet-600/10 text-white' : 'border-white/10 text-white/60 hover:border-white/20'
+                }`}
+              >
+                <CreditCard size={16} /> Cartão de crédito
+              </button>
+            </div>
+
+            <h2 className="pt-2 font-display text-lg font-bold text-white">Dados do comprador</h2>
 
             <Field label="Nome completo" error={errors.nome?.message}>
               <input {...register('nome')} className="input" placeholder="Como está no seu documento" />
@@ -180,18 +256,55 @@ export default function Checkout() {
 
             <button
               type="submit"
-              disabled={isSubmitting || step === 'pagando'}
+              disabled={isSubmitting || step === 'gerando'}
               className="flex w-full items-center justify-center gap-2 rounded-full bg-cta-gradient px-6 py-3.5 text-sm font-semibold text-white shadow-neon transition-transform hover:scale-[1.01] disabled:opacity-70"
             >
-              {step === 'pagando' ? (
+              {step === 'gerando' ? (
                 <>
-                  <Loader2 size={16} className="animate-spin" /> Redirecionando para o Mercado Pago...
+                  <Loader2 size={16} className="animate-spin" />
+                  {metodo === 'pix' ? 'Gerando o Pix...' : 'Redirecionando para o Mercado Pago...'}
                 </>
               ) : (
                 `Pagar ${formatCurrency(total)}`
               )}
             </button>
           </motion.form>
+        )}
+
+        {step === 'pix' && pix && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center"
+          >
+            <h2 className="font-display text-lg font-bold text-white">Escaneie o QR Code para pagar</h2>
+            <p className="mt-1 text-sm text-white/50">{formatCurrency(total)} · abre o app do seu banco e escaneia</p>
+
+            {pix.qrCodeBase64 ? (
+              <img
+                src={`data:image/png;base64,${pix.qrCodeBase64}`}
+                alt="QR Code do Pix"
+                className="mx-auto mt-6 h-56 w-56 rounded-xl bg-white p-2"
+              />
+            ) : (
+              <div className="mx-auto mt-6 flex h-56 w-56 items-center justify-center rounded-xl bg-white/5 text-xs text-white/40">
+                (QR Code de demonstração)
+              </div>
+            )}
+
+            <button
+              onClick={copiarCodigoPix}
+              className="mx-auto mt-5 flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-medium text-white hover:border-violet-500/50"
+            >
+              {copiado ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
+              {copiado ? 'Código copiado!' : 'Copiar código Pix'}
+            </button>
+
+            <div className="mx-auto mt-6 flex max-w-xs items-center justify-center gap-2 text-xs text-white/40">
+              <Loader2 size={13} className="animate-spin" />
+              Aguardando confirmação do pagamento — isso é automático, não precisa recarregar a página.
+            </div>
+          </motion.div>
         )}
 
         {step === 'sucesso' && (
@@ -225,7 +338,7 @@ function Stepper({ step }: { step: Step }) {
     { key: 'sucesso', label: 'Confirmação' },
   ];
   const activeIndex = steps.findIndex((s) => s.key === step) === -1
-    ? (step === 'pagando' ? 1 : 0)
+    ? (step === 'gerando' || step === 'pix' ? 1 : 0)
     : steps.findIndex((s) => s.key === step);
 
   return (
