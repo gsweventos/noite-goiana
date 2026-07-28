@@ -10,9 +10,9 @@ dist-ssr
 .firebase/
 firebase-debug.log
 firestore-debug.log
-functions/node_modules
-functions/lib
-functions/.env
+
+# Vercel
+.vercel
 
 # Editor
 .vscode/*
