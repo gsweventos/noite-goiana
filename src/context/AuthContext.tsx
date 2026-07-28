@@ -60,8 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
           return;
         }
-        const snap = await getDoc(doc(db!, 'users', fbUser.uid));
-        const role: UserRole = snap.exists() ? (snap.data().role ?? 'cliente') : 'cliente';
+        let role: UserRole = 'cliente';
+        try {
+          const snap = await getDoc(doc(db!, 'users', fbUser.uid));
+          role = snap.exists() ? (snap.data().role ?? 'cliente') : 'cliente';
+        } catch (err) {
+          // Se o Firestore falhar (regras ainda não publicadas, etc.), o login
+          // continua funcionando como "cliente" em vez de travar carregando.
+          console.error('Não foi possível carregar o perfil do usuário no Firestore:', err);
+        }
         setUser({
           id: fbUser.uid,
           nome: fbUser.displayName ?? 'Usuário',
