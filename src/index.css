@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-ink-950 text-white font-body;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(109, 40, 217, 0.25), transparent 40%),
+      radial-gradient(circle at 85% 0%, rgba(192, 132, 252, 0.18), transparent 35%);
+    background-attachment: fixed;
+  }
+  ::selection {
+    @apply bg-violet-600 text-white;
+  }
+  /* Foco visível para acessibilidade / navegação por teclado */
+  :focus-visible {
+    outline: 2px solid #C084FC;
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-cta-gradient bg-clip-text text-transparent;
+  }
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+  .input {
+    @apply w-full rounded-xl border border-white/10 bg-ink-900 px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-violet-500;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
