@@ -2,6 +2,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const ALLOWED_ORIGINS = [
   process.env.PUBLIC_APP_URL ?? 'https://www.noitegoiana.com.br',
+  'https://www.noitegoiana.com.br',
+  'https://noitegoiana.com.br',
+  'http://www.noitegoiana.com.br',
+  'http://noitegoiana.com.br',
+  'https://gsweventos.github.io',
   'http://localhost:5173',
 ];
 

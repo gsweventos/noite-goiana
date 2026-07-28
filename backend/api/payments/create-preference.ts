@@ -86,10 +86,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         external_reference: paymentRef.id,
         notification_url: `${apiUrl}/payments/webhook`,
         back_urls: {
-          // O frontend usa HashRouter, então as rotas internas levam um "#" antes do caminho.
-          success: `${appUrl}/#/painel`,
-          pending: `${appUrl}/#/painel`,
-          failure: `${appUrl}/#/checkout`,
+          // O Mercado Pago não aceita "#" nas URLs de retorno (erro
+          // invalid_back_urls), então voltamos para a raiz do site — o
+          // próprio frontend detecta o retorno do pagamento e leva o
+          // usuário para /painel automaticamente (ver App.tsx).
+          success: `${appUrl}/`,
+          pending: `${appUrl}/`,
+          failure: `${appUrl}/`,
         },
         auto_return: 'approved',
         statement_descriptor: 'NOITEGOIANA',

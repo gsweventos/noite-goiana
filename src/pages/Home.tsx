@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, ShieldAlert, Instagram, MessageCircle, Ticket } from 'lucide-react';
 import { Seo } from '@/components/Seo';
@@ -12,6 +12,7 @@ import { formatCurrency, formatDateTime, lotProgress } from '@/utils/format';
 export default function Home() {
   const [event, setEvent] = useState<EventItem | null>(null);
   const [selectedLot, setSelectedLot] = useState<TicketLot | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     eventsService.getMainEvent().then((data) => {
@@ -20,6 +21,18 @@ export default function Home() {
       setSelectedLot(ativo ?? data.lotes[0] ?? null);
     });
   }, []);
+
+  // O Mercado Pago não aceita URLs de retorno com "#" (nosso HashRouter usa
+  // isso nas rotas internas), então ele sempre traz o usuário de volta para
+  // a raiz do site. Aqui detectamos esse retorno pelos parâmetros que o
+  // próprio Mercado Pago adiciona na URL e levamos a pessoa direto pro painel.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('collection_status') ?? params.get('status');
+    if (status === 'approved' || status === 'pending' || status === 'in_process') {
+      navigate('/painel', { replace: true });
+    }
+  }, [navigate]);
 
   if (!event) return <Spinner fullScreen />;
 
