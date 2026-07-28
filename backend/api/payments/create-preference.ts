@@ -2,7 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { applyCors } from '../_lib/cors';
 import { db, admin } from '../_lib/firebaseAdmin';
-import { mpPreference } from '../_lib/mercadopago';
+import { pagbankRequest } from '../_lib/pagbank';
+import { onlyDigits, splitPhone } from '../_lib/format';
 
 const createPreferenceSchema = z.object({
   eventoId: z.string().min(1),
@@ -19,12 +20,12 @@ const createPreferenceSchema = z.object({
 /**
  * POST /api/payments/create-preference
  *
- * Cria um registro de pagamento "pendente" no Firestore e uma preference no
- * Mercado Pago (Checkout Pro). O frontend recebe apenas o `initPoint` (URL de
- * checkout) — o Access Token nunca sai do backend.
+ * Cria um registro de pagamento "pendente" no Firestore e um Checkout no
+ * PagBank. O frontend recebe apenas a URL de pagamento (equivalente ao
+ * "initPoint" do Mercado Pago) — o Access Token nunca sai do backend.
  *
  * A confirmação real do pagamento NUNCA acontece aqui: ela só é aceita via
- * webhook (ver payments/webhook.ts), consultando a API do MP.
+ * webhook (ver payments/webhook.ts), reconsultando a API do PagBank.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (applyCors(req, res)) return;
@@ -51,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const valorTotal = lote.preco * quantidade;
 
-    // 1. Cria o registro de pagamento como "pendente" ANTES de falar com o Mercado Pago.
+    // 1. Cria o registro de pagamento como "pendente" ANTES de falar com o PagBank.
     const paymentRef = db.collection('payments').doc();
     await paymentRef.set({
       eventoId,
@@ -67,43 +68,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // 2. Cria a preference no Mercado Pago (Checkout Pro).
+    // 2. Cria o Checkout no PagBank.
     const appUrl = process.env.PUBLIC_APP_URL ?? 'https://www.noitegoiana.com.br';
     const apiUrl = process.env.PUBLIC_API_URL;
+    const { area, number } = splitPhone(comprador.telefone);
 
-    const preference = await mpPreference.create({
+    const checkout = await pagbankRequest<{ id: string; links: { rel: string; href: string }[] }>('/checkouts', {
+      method: 'POST',
       body: {
+        reference_id: paymentRef.id,
+        customer: {
+          name: comprador.nome,
+          email: comprador.email,
+          tax_id: onlyDigits(comprador.cpf),
+          phone: { country: '55', area, number },
+        },
+        customer_modifiable: true,
         items: [
           {
-            id: lotId,
-            title: `${evento.nome} — ${lote.nome}`,
+            reference_id: lotId,
+            name: `${evento.nome} — ${lote.nome}`,
             quantity: quantidade,
-            unit_price: lote.preco,
-            currency_id: 'BRL',
+            unit_amount: Math.round(lote.preco * 100), // PagBank trabalha em centavos
           },
         ],
-        payer: { name: comprador.nome, email: comprador.email },
-        external_reference: paymentRef.id,
-        notification_url: `${apiUrl}/payments/webhook`,
-        back_urls: {
-          // O Mercado Pago não aceita "#" nas URLs de retorno (erro
-          // invalid_back_urls), então voltamos para a raiz do site — o
-          // próprio frontend detecta o retorno do pagamento e leva o
-          // usuário para /painel automaticamente (ver App.tsx).
-          success: `${appUrl}/`,
-          pending: `${appUrl}/`,
-          failure: `${appUrl}/`,
-        },
-        auto_return: 'approved',
-        statement_descriptor: 'NOITEGOIANA',
+        payment_notification_urls: [`${apiUrl}/payments/webhook`],
+        return_url: `${appUrl}/`,
       },
     });
 
-    await paymentRef.update({ mpPreferenceId: preference.id });
+    const payLink = checkout.links.find((l) => l.rel === 'PAY')?.href;
+    if (!payLink) throw new Error('PagBank não retornou o link de pagamento.');
+
+    await paymentRef.update({ pagbankCheckoutId: checkout.id });
 
     return res.json({
-      preferenceId: preference.id,
-      initPoint: preference.init_point,
+      preferenceId: checkout.id,
+      initPoint: payLink,
       paymentId: paymentRef.id,
     });
   } catch (err) {

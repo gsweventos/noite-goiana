@@ -22,14 +22,14 @@ export default function Home() {
     });
   }, []);
 
-  // O Mercado Pago não aceita URLs de retorno com "#" (nosso HashRouter usa
-  // isso nas rotas internas), então ele sempre traz o usuário de volta para
-  // a raiz do site. Aqui detectamos esse retorno pelos parâmetros que o
-  // próprio Mercado Pago adiciona na URL e levamos a pessoa direto pro painel.
+  // O PagBank não aceita URLs de retorno com "#" (nosso HashRouter usa isso
+  // nas rotas internas), então ele sempre traz o usuário de volta para a raiz
+  // do site. Como o PagBank não documenta parâmetros fixos de status na
+  // volta, qualquer acesso à raiz com algum parâmetro na URL é tratado como
+  // um retorno do checkout, e a pessoa é levada direto pro painel — a
+  // confirmação real do pagamento sempre acontece via webhook, não aqui.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const status = params.get('collection_status') ?? params.get('status');
-    if (status === 'approved' || status === 'pending' || status === 'in_process') {
+    if (window.location.search.length > 1) {
       navigate('/painel', { replace: true });
     }
   }, [navigate]);

@@ -2,37 +2,57 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 import { applyCors } from '../_lib/cors';
 import { db, admin } from '../_lib/firebaseAdmin';
-import { mpPayment } from '../_lib/mercadopago';
+import { pagbankRequest, getPagbankToken } from '../_lib/pagbank';
+import { verifyPagbankSignature } from '../_lib/webhookSignature';
 import { signTicketPayload } from '../_lib/qr';
 import { buildTicketPdf } from '../_lib/pdf';
 import { sendTicketEmail } from '../_lib/email';
 
+// Precisamos do corpo BRUTO (sem o Vercel parsear em JSON) para validar a
+// assinatura do PagBank corretamente — ver _lib/webhookSignature.ts.
+export const config = {
+  api: { bodyParser: false },
+};
+
+function readRawBody(req: VercelRequest): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', (chunk) => (data += chunk));
+    req.on('end', () => resolve(data));
+    req.on('error', reject);
+  });
+}
+
 /**
  * POST /api/payments/webhook
  *
- * Recebido do Mercado Pago. Regra de ouro: NUNCA confiar no corpo do webhook
- * isoladamente — sempre reconsultar a API do Mercado Pago pelo payment_id
- * para confirmar o status real antes de gerar qualquer ingresso.
+ * Recebido do PagBank. Regra de ouro: NUNCA confiar no corpo do webhook
+ * isoladamente — validamos a assinatura E reconsultamos a API do PagBank
+ * pelo id do pedido antes de gerar qualquer ingresso.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (applyCors(req, res)) return;
-  if (req.method !== 'POST') return res.status(200).end(); // MP não gosta de erro aqui
+  if (req.method !== 'POST') return res.status(200).end(); // o PagBank não gosta de erro aqui
 
   try {
-    const body = req.body ?? {};
-    const paymentId = body?.data?.id ?? req.query['data.id'];
-    const topic = body?.type ?? req.query.type;
+    const rawBody = await readRawBody(req);
+    const signature = req.headers['x-authenticity-token'] as string | undefined;
 
-    if (topic !== 'payment' || !paymentId) {
+    const valid = verifyPagbankSignature(rawBody, getPagbankToken(), signature);
+    if (!valid) {
+      console.warn('[webhook] assinatura inválida — notificação ignorada');
       return res.status(200).end();
     }
 
-    // 1. Reconsulta o pagamento diretamente na API do Mercado Pago.
-    const mpData = await mpPayment.get({ id: paymentId });
-    const externalReference = mpData.external_reference; // == paymentRef.id no Firestore
-    const status = mpData.status; // approved | pending | rejected | ...
+    const payload = JSON.parse(rawBody);
+    const orderId: string | undefined = payload?.id;
+    const externalReference: string | undefined = payload?.reference_id;
 
-    if (!externalReference) return res.status(200).end();
+    if (!orderId || !externalReference) return res.status(200).end();
+
+    // 1. Reconsulta o pedido diretamente na API do PagBank (nunca confia só no corpo recebido).
+    const order = await pagbankRequest<{ charges?: { status: string }[] }>(`/orders/${orderId}`);
+    const chargeStatus = order.charges?.[0]?.status; // PAID | DECLINED | CANCELED | WAITING | IN_ANALYSIS
 
     const paymentRef = db.collection('payments').doc(externalReference);
 
@@ -45,11 +65,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (payment.status === 'aprovado') return;
 
       const novoStatus =
-        status === 'approved' ? 'aprovado' : status === 'rejected' ? 'rejeitado' : 'em_analise';
+        chargeStatus === 'PAID' ? 'aprovado' :
+        chargeStatus === 'DECLINED' || chargeStatus === 'CANCELED' ? 'rejeitado' :
+        'em_analise';
 
       tx.update(paymentRef, {
         status: novoStatus,
-        mpPaymentId: String(paymentId),
+        pagbankOrderId: orderId,
         atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
       });
 
@@ -125,8 +147,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).end();
   } catch (err) {
-    console.error('[webhook] erro ao processar notificação do Mercado Pago:', err);
-    // Retorna 200 mesmo em erro interno para evitar reenvios agressivos do MP
+    console.error('[webhook] erro ao processar notificação do PagBank:', err);
+    // Retorna 200 mesmo em erro interno para evitar reenvios agressivos
     // enquanto o erro é investigado via logs — ajuste conforme sua política.
     return res.status(200).end();
   }

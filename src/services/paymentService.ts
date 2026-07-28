@@ -1,16 +1,16 @@
 /**
- * O frontend NUNCA fala diretamente com a API do Mercado Pago nem conhece o
- * Access Token — isso violaria a regra de segurança do projeto ("nenhuma
- * credencial secreta no frontend"). Em vez disso, o frontend chama o backend
- * próprio (Cloud Functions / Cloud Run), que:
+ * O frontend NUNCA fala diretamente com a API do PagBank nem conhece o
+ * Token de integração — isso violaria a regra de segurança do projeto
+ * ("nenhuma credencial secreta no frontend"). Em vez disso, o frontend chama
+ * o backend próprio (Vercel Serverless Functions, ver /backend), que:
  *
- *   1. Cria a "preference" de pagamento no Mercado Pago (Checkout Pro) usando
- *      o Access Token guardado em variável de ambiente do backend;
- *   2. Devolve para o frontend apenas o `init_point` (URL de checkout) e o
- *      `preferenceId`;
- *   3. Recebe o webhook do Mercado Pago de forma assíncrona, valida o
- *      pagamento consultando a API do MP pelo `payment_id` (nunca confiando
- *      só no corpo do webhook) e só então gera o ingresso.
+ *   1. Cria um Checkout de pagamento no PagBank usando o token guardado em
+ *      variável de ambiente do backend;
+ *   2. Devolve para o frontend apenas a URL de pagamento e o id interno do
+ *      pagamento;
+ *   3. Recebe o webhook do PagBank de forma assíncrona, valida a assinatura
+ *      e reconsulta a API do PagBank pelo id do pedido (nunca confiando só
+ *      no corpo do webhook) e só então gera o ingresso.
  *
  * Ver backend/api/payments/create-preference.ts para a implementação do backend.
  */
@@ -31,7 +31,7 @@ export interface CreatePreferencePayload {
 
 export interface CreatePreferenceResponse {
   preferenceId: string;
-  initPoint: string; // URL do Checkout Pro do Mercado Pago
+  initPoint: string; // URL de pagamento do Checkout PagBank
   paymentId: string; // id interno (Firestore) do registro de pagamento, ainda "pendente"
 }
 

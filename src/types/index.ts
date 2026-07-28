@@ -93,8 +93,8 @@ export type PaymentStatus = 'pendente' | 'aprovado' | 'rejeitado' | 'estornado' 
 
 export interface Payment {
   id: string;
-  mpPaymentId?: string; // id retornado pelo Mercado Pago
-  mpPreferenceId?: string;
+  pagbankOrderId?: string; // id do pedido retornado pelo PagBank
+  pagbankCheckoutId?: string;
   eventoId: string;
   compradorNome: string;
   compradorCpf: string;

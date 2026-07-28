@@ -3,7 +3,7 @@ import { EVENT_ID } from '@/config/event';
 
 /**
  * Dados fictícios usados apenas para demonstração local (modo mock), até o
- * primeiro pagamento real acontecer via Mercado Pago + webhook. Servem para
+ * primeiro pagamento real acontecer via PagBank + webhook. Servem para
  * mostrar como fica a área administrativa (ingressos, clientes, pagamentos)
  * com alguns exemplos preenchidos.
  */
@@ -30,8 +30,8 @@ export const mockTickets: Ticket[] = [
 export const mockPayments: Payment[] = [
   {
     id: 'pay-001',
-    mpPaymentId: '123456789',
-    mpPreferenceId: 'pref-abc123',
+    pagbankOrderId: 'ORDE_123456789',
+    pagbankCheckoutId: 'CHEC_abc123',
     eventoId: EVENT_ID,
     compradorNome: 'Maria Silva',
     compradorCpf: '000.000.000-00',
