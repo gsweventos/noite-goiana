@@ -35,8 +35,8 @@ export default function Home() {
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10">
-          <img src={event.imagemBanner} alt="" className="h-full w-full object-cover opacity-40" />
-          <div className="absolute inset-0 bg-gradient-to-b from-ink-950/40 via-ink-950/80 to-ink-950" />
+          <img src={event.imagemBanner} alt="" className="h-full w-full object-cover opacity-70" />
+          <div className="absolute inset-0 bg-gradient-to-b from-ink-950/50 via-ink-950/75 to-ink-950" />
           <div className="absolute inset-0 bg-grid-glow" />
         </div>
 

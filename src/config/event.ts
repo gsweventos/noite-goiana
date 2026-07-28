@@ -1,4 +1,5 @@
 import { EventItem } from '@/types';
+import truckBg from '@/assets/noite-goiana-truck-bg.jpg';
 
 /**
  * A Noite Goiana não é uma plataforma com vários eventos — é o site de UMA
@@ -19,12 +20,10 @@ export const MAIN_EVENT: EventItem = {
   nome: 'Noite Goiana',
   descricaoCurta: 'Festa de som automotivo em Formosa. Prepare-se para viver a melhor noite automotiva que Formosa já viu.',
   descricao: 'Prepare-se para viver a melhor noite automotiva que Formosa já viu.',
-  // Imagens placeholder (banco de imagens gratuito) com clima automotivo/neon —
-  // fotos de bancos internacionais não têm exatamente o visual de "deboxe"/som
-  // automotivo brasileiro. Troque pela foto real do evento assim que tiver
-  // (foto do carro do organizador, de uma edição anterior, do local, etc.).
-  imagemCapa: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80',
-  imagemBanner: 'https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&w=1920&q=80',
+  // Foto oficial da divulgação (GSW Eventos) — recorte da camionete do
+  // material de arte da festa, usada como fundo do site.
+  imagemCapa: truckBg,
+  imagemBanner: truckBg,
   categoriaId: 'cat-automotivo',
   organizador: 'Noite Goiana',
   local: {
