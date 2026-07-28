@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
 import { Layout, BareLayout } from '@/components/Layout';
 import { RequireAuth, RequireAdmin } from '@/components/RouteGuards';
@@ -26,7 +26,7 @@ import AdminPayments from '@/admin/AdminPayments';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AuthProvider>
         <Routes>
           <Route element={<Layout />}>
@@ -82,6 +82,6 @@ export default function App() {
           </Route>
         </Routes>
       </AuthProvider>
-    </BrowserRouter>
+    </HashRouter>
   );
 }

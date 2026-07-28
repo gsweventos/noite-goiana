@@ -5,11 +5,13 @@ import react from '@vitejs/plugin-react';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Repositório será publicado no GitHub Pages em www.noitegoiana.com.br (domínio próprio via CNAME),
-// por isso "base" fica em "/" — se publicar em github.io/<repo> sem domínio próprio, troque para "/<repo>/".
+// Caminho relativo: os arquivos gerados (JS/CSS) são referenciados de forma
+// relativa ao próprio index.html, então o site funciona tanto na raiz de um
+// domínio (www.noitegoiana.com.br/) quanto numa subpasta
+// (gsweventos.github.io/noite-goiana/) sem precisar trocar essa configuração.
 export default defineConfig({
   plugins: [react()],
-  base: '/',
+  base: './',
   resolve: {
     alias: {
       // Precisa espelhar o "paths" do tsconfig.json — o TypeScript só valida tipos,

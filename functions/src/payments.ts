@@ -91,9 +91,11 @@ paymentsRouter.post('/create-preference', async (req, res) => {
       external_reference: paymentRef.id,
       notification_url: `${apiUrl}/payments/webhook`,
       back_urls: {
-        success: `${appUrl}/painel`,
-        pending: `${appUrl}/painel`,
-        failure: `${appUrl}/checkout/${eventoId}`,
+        // O frontend usa HashRouter (funciona em qualquer domínio/subpasta sem
+        // configuração extra), então as rotas internas levam um "#" antes do caminho.
+        success: `${appUrl}/#/painel`,
+        pending: `${appUrl}/#/painel`,
+        failure: `${appUrl}/#/checkout/${eventoId}`,
       },
       auto_return: 'approved',
       statement_descriptor: 'NOITEGOIANA',
