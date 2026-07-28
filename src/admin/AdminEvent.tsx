@@ -74,7 +74,13 @@ export default function AdminEvent() {
   async function onSubmit(values: EventFormValues) {
     setSaving(true);
     setSalvo(false);
-    const payload: Partial<EventItem> = {
+
+    // Busca o evento completo atual e mescla por cima, garantindo que campos
+    // internos (status, slug, capacidade, etc.) nunca fiquem ausentes no
+    // documento salvo — mesmo que esse formulário não os edite diretamente.
+    const atual = await eventsService.getMainEvent();
+    const payload: EventItem = {
+      ...atual,
       nome: values.nome,
       descricao: values.descricao,
       descricaoCurta: values.descricaoCurta,
@@ -85,6 +91,7 @@ export default function AdminEvent() {
       dataInicio: new Date(values.dataInicio).toISOString(),
       lotes: values.lotes,
       regulamento: values.regulamento,
+      status: 'publicado',
     };
 
     await eventsService.update(payload);

@@ -12,7 +12,7 @@
  *      pagamento consultando a API do MP pelo `payment_id` (nunca confiando
  *      só no corpo do webhook) e só então gera o ingresso.
  *
- * Ver functions/src/payments.ts para a implementação de referência do backend.
+ * Ver backend/api/payments/create-preference.ts para a implementação do backend.
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string | undefined;

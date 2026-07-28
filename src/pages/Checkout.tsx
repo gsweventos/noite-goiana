@@ -58,17 +58,26 @@ export default function Checkout() {
     setErro(null);
     setStep('pagando');
     try {
-      await paymentService.createPreference({
+      const response = await paymentService.createPreference({
         eventoId: event!.id,
         lotId: lote!.id,
         quantidade,
         comprador: data,
       });
-      // Em produção: o usuário é redirecionado ao `initPoint` do Mercado Pago e
-      // só retorna a esta aplicação (ou recebe o e-mail) após o webhook confirmar
-      // o pagamento. Aqui, no modo demonstração, simulamos a aprovação.
-      await new Promise((r) => setTimeout(r, 1200));
-      setStep('sucesso');
+
+      if (response.initPoint === '#checkout-demo') {
+        // Modo demonstração (sem VITE_API_BASE_URL configurado): simula a
+        // aprovação localmente, já que não existe um backend real para redirecionar.
+        await new Promise((r) => setTimeout(r, 1200));
+        setStep('sucesso');
+        return;
+      }
+
+      // Fluxo real: manda o navegador de verdade para a página de pagamento
+      // do Mercado Pago. O usuário só volta para este site depois de pagar
+      // (ver back_urls no backend) — a confirmação definitiva acontece via
+      // webhook, não aqui.
+      window.location.href = response.initPoint;
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao processar pagamento.');
       setStep('dados');
