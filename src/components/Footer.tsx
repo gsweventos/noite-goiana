@@ -23,7 +23,7 @@ export function Footer() {
           <div className="col-span-2 md:col-span-1">
             <Logo className="text-xl" />
             <p className="mt-3 max-w-xs text-sm text-white/50">
-              Aguardamos você para a melhor noite que Formosa já viu.
+              Prepare-se para viver a melhor noite automotiva que Formosa já viu.
             </p>
             <div className="mt-4 flex gap-3">
               <a

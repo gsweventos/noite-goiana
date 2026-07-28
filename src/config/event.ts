@@ -17,9 +17,8 @@ export const MAIN_EVENT: EventItem = {
   id: EVENT_ID,
   slug: 'noite-goiana',
   nome: 'Noite Goiana',
-  descricaoCurta: 'Festa de som automotivo em Formosa — aguardamos você para a melhor noite que Formosa já viu.',
-  descricao:
-    'Aguardamos você para a melhor noite que Formosa já viu, aguardamos vocês na Noite Goiana.',
+  descricaoCurta: 'Festa de som automotivo em Formosa. Prepare-se para viver a melhor noite automotiva que Formosa já viu.',
+  descricao: 'Prepare-se para viver a melhor noite automotiva que Formosa já viu.',
   // Imagens placeholder (banco de imagens gratuito) com clima automotivo/neon —
   // fotos de bancos internacionais não têm exatamente o visual de "deboxe"/som
   // automotivo brasileiro. Troque pela foto real do evento assim que tiver
@@ -38,7 +37,8 @@ export const MAIN_EVENT: EventItem = {
   dataFim: '2026-09-13T05:00:00-03:00',
   capacidade: 0,
   lotes: [],
-  regulamento: 'Ingresso pessoal e intransferível, vinculado ao CPF do comprador. Classificação indicativa a confirmar.',
+  regulamento:
+    'Ingresso pessoal e intransferível, vinculado ao CPF do comprador. O evento contará com esquema de segurança reforçado do início ao fim, para garantir uma noite tranquila para todos.',
   status: 'publicado',
   destaque: true,
   criadoEm: '2026-07-28T00:00:00-03:00',
