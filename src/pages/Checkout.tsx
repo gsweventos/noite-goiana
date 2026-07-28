@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useParams, useSearchParams, Navigate, Link } from 'react-router-dom';
+import { useSearchParams, Navigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -25,7 +25,6 @@ type CheckoutForm = z.infer<typeof checkoutSchema>;
 type Step = 'quantidade' | 'dados' | 'pagando' | 'sucesso';
 
 export default function Checkout() {
-  const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
   const loteId = searchParams.get('lote');
 
@@ -35,9 +34,8 @@ export default function Checkout() {
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!slug) return;
-    eventsService.getBySlug(slug).then(setEvent);
-  }, [slug]);
+    eventsService.getMainEvent().then(setEvent);
+  }, []);
 
   const {
     register,
@@ -48,10 +46,10 @@ export default function Checkout() {
   } = useForm<CheckoutForm>({ resolver: zodResolver(checkoutSchema) });
 
   if (event === undefined) return <Spinner fullScreen />;
-  if (event === null) return <Navigate to="/eventos" replace />;
+  if (event === null) return <Navigate to="/" replace />;
 
   const lote: TicketLot | undefined = event.lotes.find((l) => l.id === loteId) ?? event.lotes[0];
-  if (!lote) return <Navigate to={`/eventos/${event.slug}`} replace />;
+  if (!lote) return <Navigate to="/" replace />;
 
   const restantes = lote.quantidadeTotal - lote.quantidadeVendida;
   const total = lote.preco * quantidade;
@@ -82,8 +80,8 @@ export default function Checkout() {
       <Seo title={`Comprar ingresso — ${event.nome}`} />
 
       <section className="mx-auto max-w-3xl px-4 py-14 sm:px-6 lg:px-8">
-        <Link to={`/eventos/${event.slug}`} className="text-sm text-white/40 hover:text-white/70">
-          ← Voltar para o evento
+        <Link to="/" className="text-sm text-white/40 hover:text-white/70">
+          ← Voltar
         </Link>
 
         <h1 className="mt-4 font-display text-3xl font-extrabold text-white">{event.nome}</h1>

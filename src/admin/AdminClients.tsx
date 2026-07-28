@@ -8,7 +8,7 @@ export default function AdminClients() {
     <>
       <Seo title="Clientes" />
       <h1 className="font-display text-2xl font-bold text-white">Clientes</h1>
-      <p className="mt-1 text-sm text-white/50">Pessoas que já compraram ingressos na plataforma.</p>
+      <p className="mt-1 text-sm text-white/50">Pessoas que já compraram ingressos.</p>
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
         <table className="w-full text-left text-sm">

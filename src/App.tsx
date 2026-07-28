@@ -4,8 +4,6 @@ import { Layout, BareLayout } from '@/components/Layout';
 import { RequireAuth, RequireAdmin } from '@/components/RouteGuards';
 
 import Home from '@/pages/Home';
-import Events from '@/pages/Events';
-import EventDetail from '@/pages/EventDetail';
 import Checkout from '@/pages/Checkout';
 import Login from '@/pages/Login';
 import ClientDashboard from '@/pages/ClientDashboard';
@@ -17,9 +15,7 @@ import NotFound from '@/pages/NotFound';
 
 import AdminLayout from '@/admin/AdminLayout';
 import AdminDashboard from '@/admin/AdminDashboard';
-import AdminEvents from '@/admin/AdminEvents';
-import AdminEventForm from '@/admin/AdminEventForm';
-import AdminCategories from '@/admin/AdminCategories';
+import AdminEvent from '@/admin/AdminEvent';
 import AdminTickets from '@/admin/AdminTickets';
 import AdminClients from '@/admin/AdminClients';
 import AdminPayments from '@/admin/AdminPayments';
@@ -31,9 +27,7 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Home />} />
-            <Route path="/eventos" element={<Events />} />
-            <Route path="/eventos/:slug" element={<EventDetail />} />
-            <Route path="/checkout/:slug" element={<Checkout />} />
+            <Route path="/checkout" element={<Checkout />} />
             <Route path="/login" element={<Login />} />
             <Route path="/sobre" element={<About />} />
             <Route path="/contato" element={<Contact />} />
@@ -58,9 +52,7 @@ export default function App() {
               }
             >
               <Route index element={<AdminDashboard />} />
-              <Route path="eventos" element={<AdminEvents />} />
-              <Route path="eventos/:id" element={<AdminEventForm />} />
-              <Route path="categorias" element={<AdminCategories />} />
+              <Route path="evento" element={<AdminEvent />} />
               <Route path="ingressos" element={<AdminTickets />} />
               <Route path="clientes" element={<AdminClients />} />
               <Route path="pagamentos" element={<AdminPayments />} />

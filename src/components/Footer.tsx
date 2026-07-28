@@ -1,8 +1,21 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Instagram, MessageCircle } from 'lucide-react';
 import { Logo } from './Logo';
 
 export function Footer() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  function irParaIngressos() {
+    const scroll = () => document.getElementById('ingressos')?.scrollIntoView({ behavior: 'smooth' });
+    if (location.pathname === '/') {
+      scroll();
+    } else {
+      navigate('/');
+      setTimeout(scroll, 150);
+    }
+  }
+
   return (
     <footer className="border-t border-white/10 bg-ink-950">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -10,7 +23,7 @@ export function Footer() {
           <div className="col-span-2 md:col-span-1">
             <Logo className="text-xl" />
             <p className="mt-3 max-w-xs text-sm text-white/50">
-              Os melhores eventos, shows e baladas de Goiás em um só lugar.
+              Aguardamos você para a melhor noite que Formosa já viu.
             </p>
             <div className="mt-4 flex gap-3">
               <a
@@ -37,7 +50,7 @@ export function Footer() {
           <div>
             <h3 className="text-sm font-semibold text-white">Navegação</h3>
             <ul className="mt-3 space-y-2 text-sm text-white/50">
-              <li><Link to="/eventos" className="hover:text-violet-400">Eventos</Link></li>
+              <li><button onClick={irParaIngressos} className="hover:text-violet-400">Ingressos</button></li>
               <li><Link to="/sobre" className="hover:text-violet-400">Sobre nós</Link></li>
               <li><Link to="/contato" className="hover:text-violet-400">Contato</Link></li>
             </ul>
@@ -52,10 +65,9 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-white">Organizadores</h3>
+            <h3 className="text-sm font-semibold text-white">Conta</h3>
             <ul className="mt-3 space-y-2 text-sm text-white/50">
-              <li><Link to="/login" className="hover:text-violet-400">Acessar painel</Link></li>
-              <li><a href="mailto:contato@noitegoiana.com.br" className="hover:text-violet-400">Vender comigo</a></li>
+              <li><Link to="/login" className="hover:text-violet-400">Acessar minha conta</Link></li>
             </ul>
           </div>
         </div>

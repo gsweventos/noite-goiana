@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, User, Ticket, LogOut, LayoutDashboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Logo } from './Logo';
@@ -7,15 +7,27 @@ import { useAuth } from '@/context/AuthContext';
 
 const NAV_LINKS = [
   { to: '/', label: 'Início' },
-  { to: '/eventos', label: 'Eventos' },
   { to: '/sobre', label: 'Sobre' },
   { to: '/contato', label: 'Contato' },
 ];
+
+/** Rola até a seção de ingressos na home. Navega para "/" primeiro se necessário. */
+function scrollToIngressos(navigate: ReturnType<typeof useNavigate>, isHome: boolean) {
+  const scroll = () => document.getElementById('ingressos')?.scrollIntoView({ behavior: 'smooth' });
+  if (isHome) {
+    scroll();
+  } else {
+    navigate('/');
+    setTimeout(scroll, 150);
+  }
+}
 
 export function Header() {
   const [open, setOpen] = useState(false);
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isHome = location.pathname === '/';
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-ink-950/80 backdrop-blur-xl">
@@ -39,6 +51,12 @@ export function Header() {
               {link.label}
             </NavLink>
           ))}
+          <button
+            onClick={() => scrollToIngressos(navigate, isHome)}
+            className="text-sm font-medium text-white/60 transition-colors hover:text-violet-400"
+          >
+            Ingressos
+          </button>
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
@@ -107,6 +125,15 @@ export function Header() {
                   {link.label}
                 </NavLink>
               ))}
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  scrollToIngressos(navigate, isHome);
+                }}
+                className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-white/80 hover:bg-white/5"
+              >
+                Ingressos
+              </button>
               <div className="my-2 h-px bg-white/10" />
               {user ? (
                 <>

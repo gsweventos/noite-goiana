@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { QrCode, Download, User as UserIcon, Ticket as TicketIcon } from 'lucide-react';
 import { Seo } from '@/components/Seo';
 import { Spinner } from '@/components/Spinner';
@@ -47,7 +48,7 @@ export default function ClientDashboard() {
               <Spinner fullScreen />
             ) : tickets.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-16 text-center text-white/50">
-                Você ainda não tem ingressos. Que tal <a href="/eventos" className="text-violet-400 hover:underline">encontrar um evento</a>?
+                Você ainda não tem ingressos. Que tal <Link to="/" className="text-violet-400 hover:underline">garantir o seu</Link>?
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">

@@ -95,7 +95,7 @@ paymentsRouter.post('/create-preference', async (req, res) => {
         // configuração extra), então as rotas internas levam um "#" antes do caminho.
         success: `${appUrl}/#/painel`,
         pending: `${appUrl}/#/painel`,
-        failure: `${appUrl}/#/checkout/${eventoId}`,
+        failure: `${appUrl}/#/checkout`,
       },
       auto_return: 'approved',
       statement_descriptor: 'NOITEGOIANA',

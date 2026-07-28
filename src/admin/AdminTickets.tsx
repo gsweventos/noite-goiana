@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Seo } from '@/components/Seo';
-import { eventsService } from '@/services/eventsService';
 import { ticketsService } from '@/services/ticketsService';
+import { EVENT_ID } from '@/config/event';
 import { Ticket } from '@/types';
 import { formatDateTime } from '@/utils/format';
 
@@ -9,10 +9,7 @@ export default function AdminTickets() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
 
   useEffect(() => {
-    eventsService.listPublished().then(async (evts) => {
-      const all = await Promise.all(evts.map((e) => ticketsService.listByEvent(e.id)));
-      setTickets(all.flat());
-    });
+    ticketsService.listByEvent(EVENT_ID).then(setTickets);
   }, []);
 
   return (
