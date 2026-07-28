@@ -93,8 +93,8 @@ export type PaymentStatus = 'pendente' | 'aprovado' | 'rejeitado' | 'estornado' 
 
 export interface Payment {
   id: string;
-  asaasPaymentId?: string; // id do pedido retornado pelo Asaas
-  asaasCheckoutId?: string;
+  mpPaymentId?: string; // id do pedido retornado pelo Mercado Pago
+  mpPreferenceId?: string;
   eventoId: string;
   compradorNome: string;
   compradorCpf: string;

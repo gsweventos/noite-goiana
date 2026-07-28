@@ -22,13 +22,13 @@ export default function Home() {
     });
   }, []);
 
-  // Por simplicidade, as URLs de retorno do checkout sempre apontam para a
-  // raiz do site (nosso HashRouter usa "#" nas rotas internas, e evitamos
-  // depender de cada provedor de pagamento aceitar isso). Como o Asaas não
-  // documenta parâmetros fixos de status na volta, qualquer acesso à raiz
-  // com algum parâmetro na URL é tratado como um retorno do checkout, e a
-  // pessoa é levada direto pro painel — a confirmação real do pagamento
-  // sempre acontece via webhook, não aqui.
+  // As URLs de retorno do checkout sempre apontam para a raiz do site
+  // (nosso HashRouter usa "#" nas rotas internas, e isso evita depender de
+  // cada provedor de pagamento aceitar "#" nas back_urls). O Mercado Pago
+  // adiciona parâmetros como "collection_status"/"status" na volta, mas
+  // qualquer acesso à raiz com algum parâmetro na URL já é tratado aqui
+  // como um retorno do checkout, e a pessoa é levada direto pro painel — a
+  // confirmação real do pagamento sempre acontece via webhook, não aqui.
   useEffect(() => {
     if (window.location.search.length > 1) {
       navigate('/painel', { replace: true });
