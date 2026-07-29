@@ -27,6 +27,7 @@ export interface CreatePreferencePayload {
     cpf: string;
     email: string;
     telefone: string;
+    dataNascimento: string;
   };
 }
 

@@ -11,13 +11,14 @@ import { Spinner } from '@/components/Spinner';
 import { eventsService } from '@/services/eventsService';
 import { paymentService, CreatePixResponse } from '@/services/paymentService';
 import { EventItem, TicketLot } from '@/types';
-import { formatCurrency, isValidCpf, maskCpf, maskPhone } from '@/utils/format';
+import { formatCurrency, isValidCpf, isValidBirthDate, maskCpf, maskDate, maskPhone } from '@/utils/format';
 
 const checkoutSchema = z.object({
   nome: z.string().min(3, 'Informe seu nome completo'),
   cpf: z.string().refine(isValidCpf, 'CPF inválido'),
   telefone: z.string().min(14, 'Telefone inválido'),
   email: z.string().email('E-mail inválido'),
+  dataNascimento: z.string().refine(isValidBirthDate, 'Data de nascimento inválida'),
 });
 
 type CheckoutForm = z.infer<typeof checkoutSchema>;
@@ -240,6 +241,17 @@ export default function Checkout() {
                 placeholder="(62) 90000-0000"
                 value={watch('telefone') ?? ''}
                 onChange={(e) => setValue('telefone', maskPhone(e.target.value), { shouldValidate: true })}
+              />
+            </Field>
+
+            <Field label="Data de nascimento" error={errors.dataNascimento?.message}>
+              <input
+                {...register('dataNascimento')}
+                className="input"
+                placeholder="00/00/0000"
+                inputMode="numeric"
+                value={watch('dataNascimento') ?? ''}
+                onChange={(e) => setValue('dataNascimento', maskDate(e.target.value), { shouldValidate: true })}
               />
             </Field>
 

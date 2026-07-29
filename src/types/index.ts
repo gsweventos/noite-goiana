@@ -81,12 +81,15 @@ export interface Ticket {
   compradorNome: string;
   compradorCpf: string;
   compradorEmail: string;
+  compradorTelefone?: string;
+  compradorDataNascimento?: string; // DD/MM/AAAA
   numero: number; // número sequencial do ingresso dentro da compra
   status: TicketStatus;
   criadoEm: string;
   utilizadoEm?: string;
   utilizadoPor?: string; // operador responsável pelo check-in
   paymentId: string;
+  origem?: 'checkout' | 'manual'; // 'manual' = liberado pelo admin sem pagamento (cortesia)
 }
 
 export type PaymentStatus = 'pendente' | 'aprovado' | 'rejeitado' | 'estornado' | 'em_analise';
@@ -100,10 +103,13 @@ export interface Payment {
   compradorCpf: string;
   compradorEmail: string;
   compradorTelefone: string;
+  compradorDataNascimento?: string; // DD/MM/AAAA
   quantidade: number;
   lotId: string;
   valorTotal: number;
   status: PaymentStatus;
+  origem?: 'checkout' | 'manual'; // 'manual' = liberado pelo admin sem pagamento (cortesia)
+  motivo?: string; // anotação livre do admin, ex: "Cortesia - equipe de som"
   criadoEm: string;
   atualizadoEm: string;
 }

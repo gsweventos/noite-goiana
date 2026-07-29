@@ -13,6 +13,7 @@ const createPixSchema = z.object({
     cpf: z.string().min(11),
     email: z.string().email(),
     telefone: z.string().min(8),
+    dataNascimento: z.string().min(8),
   }),
 });
 
@@ -61,6 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       compradorCpf: comprador.cpf,
       compradorEmail: comprador.email,
       compradorTelefone: comprador.telefone,
+      compradorDataNascimento: comprador.dataNascimento,
       valorTotal,
       status: 'pendente',
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),

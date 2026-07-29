@@ -5,27 +5,24 @@ import { signTicketPayload } from './qr';
 import { buildTicketPdf } from './pdf';
 import { sendTicketEmail } from './email';
 
+type NovoStatus = 'aprovado' | 'rejeitado' | 'em_analise';
+
 /**
- * Reconsulta um pagamento na API do Mercado Pago pelo mpPaymentId e, se
- * estiver aprovado, gera os ingressos (dentro de uma transação, evitando
- * overselling) e dispara o e-mail com o PDF.
+ * Núcleo da confirmação: dado um pagamento (por referência do Firestore) e o
+ * status que deve assumir, atualiza o registro e — se for "aprovado" — gera
+ * os ingressos dentro de uma transação (evitando overselling), envia o(s)
+ * e-mail(s) e retorna.
  *
- * É idempotente: chamar de novo para um pagamento já processado não duplica
- * nada. Usado tanto pelo webhook (payments/webhook.ts) quanto pela checagem
- * de status feita pelo próprio site enquanto o comprador espera na tela
- * (payments/[id]/status.ts) — assim, mesmo que o webhook do Mercado Pago
- * atrase ou não chegue, a confirmação acontece de qualquer forma assim que
- * o comprador (ou o site, via polling) verificar o status.
+ * É idempotente: chamar de novo para um pagamento já aprovado não duplica
+ * nada. Usado por três entradas diferentes:
+ *   1. confirmarPagamentoPorMpId — webhook/polling de pagamentos reais
+ *   2. liberarCortesia — ingressos liberados manualmente pelo admin, sem pagamento
  */
-export async function confirmarPagamentoPorMpId(mpPaymentId: string | number): Promise<void> {
-  const mpData = await mpPayment.get({ id: mpPaymentId });
-  const externalReference = mpData.external_reference;
-  const status = mpData.status; // approved | pending | rejected | ...
-
-  if (!externalReference) return;
-
-  const paymentRef = db.collection('payments').doc(externalReference);
-
+async function processarStatusDoPagamento(
+  paymentRef: FirebaseFirestore.DocumentReference,
+  novoStatus: NovoStatus,
+  extraFields: Record<string, unknown> = {}
+): Promise<void> {
   await db.runTransaction(async (tx) => {
     // --- Fase 1: TODAS as leituras primeiro (exigência do Firestore) ---
     const paySnap = await tx.get(paymentRef);
@@ -35,17 +32,14 @@ export async function confirmarPagamentoPorMpId(mpPaymentId: string | number): P
     // Idempotência: se já processamos esse pagamento como aprovado, não repete.
     if (payment.status === 'aprovado') return;
 
-    const novoStatus =
-      status === 'approved' ? 'aprovado' : status === 'rejected' ? 'rejeitado' : 'em_analise';
-
     const eventRef = db.collection('events').doc(payment.eventoId);
     const eventSnap = novoStatus === 'aprovado' ? await tx.get(eventRef) : null;
 
     // --- Fase 2: agora sim, as escritas ---
     tx.update(paymentRef, {
       status: novoStatus,
-      mpPaymentId: String(mpPaymentId),
       atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      ...extraFields,
     });
 
     if (novoStatus !== 'aprovado') return;
@@ -80,10 +74,13 @@ export async function confirmarPagamentoPorMpId(mpPaymentId: string | number): P
         compradorNome: payment.compradorNome,
         compradorCpf: payment.compradorCpf,
         compradorEmail: payment.compradorEmail,
+        compradorTelefone: payment.compradorTelefone ?? null,
+        compradorDataNascimento: payment.compradorDataNascimento ?? null,
         numero: i + 1,
         status: 'valido',
         criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-        paymentId: externalReference,
+        paymentId: paymentRef.id,
+        origem: payment.origem ?? 'checkout',
       });
       ticketIds.push(ticketId);
     }
@@ -118,4 +115,77 @@ export async function confirmarPagamentoPorMpId(mpPaymentId: string | number): P
     // Evita reenviar o e-mail se o status for reconsultado de novo depois.
     await paymentRef.update({ emailEnviado: true });
   }
+}
+
+/**
+ * Reconsulta um pagamento na API do Mercado Pago pelo mpPaymentId e processa
+ * o resultado (ver processarStatusDoPagamento). Regra de ouro: NUNCA confiar
+ * no corpo do webhook isoladamente — sempre reconsultar a API pra confirmar
+ * o status real antes de gerar qualquer ingresso.
+ *
+ * Usado tanto pelo webhook (payments/webhook.ts) quanto pela checagem de
+ * status feita pelo próprio site enquanto o comprador espera na tela
+ * (payments/[id]/status.ts) — assim, mesmo que o webhook do Mercado Pago
+ * atrase ou não chegue, a confirmação acontece de qualquer forma assim que
+ * o comprador (ou o site, via polling) verificar o status.
+ */
+export async function confirmarPagamentoPorMpId(mpPaymentId: string | number): Promise<void> {
+  const mpData = await mpPayment.get({ id: mpPaymentId });
+  const externalReference = mpData.external_reference;
+  const status = mpData.status; // approved | pending | rejected | ...
+
+  if (!externalReference) return;
+
+  const novoStatus: NovoStatus =
+    status === 'approved' ? 'aprovado' : status === 'rejected' ? 'rejeitado' : 'em_analise';
+
+  const paymentRef = db.collection('payments').doc(externalReference);
+  await processarStatusDoPagamento(paymentRef, novoStatus, { mpPaymentId: String(mpPaymentId) });
+}
+
+interface LiberarCortesiaParams {
+  eventoId: string;
+  lotId: string;
+  quantidade: number;
+  comprador: {
+    nome: string;
+    cpf: string;
+    email: string;
+    telefone: string;
+    dataNascimento?: string;
+  };
+  motivo?: string;
+  liberadoPor: string; // uid do admin que liberou
+}
+
+/**
+ * Libera ingresso(s) SEM pagamento — usado pelo admin para dar cortesias.
+ * Cria um registro de pagamento já como "aprovado", com origem "manual", e
+ * reaproveita a mesma lógica de geração de ingresso (QR Code, débito do
+ * lote, envio de e-mail) usada nas compras normais — na prática, o ingresso
+ * liberado assim é idêntico a um pago, tanto pro comprador (aparece no
+ * painel dele normalmente) quanto pro check-in.
+ */
+export async function liberarCortesia(params: LiberarCortesiaParams): Promise<string> {
+  const paymentRef = db.collection('payments').doc();
+  await paymentRef.set({
+    eventoId: params.eventoId,
+    lotId: params.lotId,
+    quantidade: params.quantidade,
+    compradorNome: params.comprador.nome,
+    compradorCpf: params.comprador.cpf,
+    compradorEmail: params.comprador.email,
+    compradorTelefone: params.comprador.telefone,
+    compradorDataNascimento: params.comprador.dataNascimento ?? null,
+    valorTotal: 0,
+    status: 'pendente',
+    origem: 'manual',
+    motivo: params.motivo ?? null,
+    liberadoPor: params.liberadoPor,
+    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  await processarStatusDoPagamento(paymentRef, 'aprovado');
+  return paymentRef.id;
 }

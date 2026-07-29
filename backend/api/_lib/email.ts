@@ -32,7 +32,7 @@ export async function sendTicketEmail({ to, nomeComprador, eventoNome, pdfBuffer
 
   const transport = buildTransport();
   await transport.sendMail({
-    from: process.env.SMTP_FROM ?? 'Noite Goiana <contato@noitegoiana.com.br>',
+    from: process.env.SMTP_FROM ?? 'Noite Goiana <gswprodeventos@gmail.com>',
     to,
     subject: `Seu ingresso — ${eventoNome}`,
     text: `Olá, ${nomeComprador}! Seu ingresso para ${eventoNome} está em anexo. Apresente o QR Code na entrada.`,

@@ -27,7 +27,7 @@ export function Footer() {
             </p>
             <div className="mt-4 flex gap-3">
               <a
-                href="https://instagram.com/noitegoiana"
+                href="https://instagram.com/noitegoianafsa"
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Instagram da Noite Goiana"
@@ -36,7 +36,7 @@ export function Footer() {
                 <Instagram size={18} />
               </a>
               <a
-                href="https://wa.me/5562900000000"
+                href="https://wa.me/5561982804443"
                 target="_blank"
                 rel="noreferrer"
                 aria-label="WhatsApp da Noite Goiana"

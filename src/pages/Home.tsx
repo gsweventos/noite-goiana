@@ -125,7 +125,7 @@ export default function Home() {
               </p>
               <div className="mt-5 flex justify-center gap-3">
                 <a
-                  href="https://instagram.com/noitegoiana"
+                  href="https://instagram.com/noitegoianafsa"
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-sm text-white hover:border-violet-500/50"
@@ -133,7 +133,7 @@ export default function Home() {
                   <Instagram size={15} /> Instagram
                 </a>
                 <a
-                  href="https://wa.me/5562900000000"
+                  href="https://wa.me/5561982804443"
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-sm text-white hover:border-violet-500/50"

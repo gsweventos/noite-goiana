@@ -16,6 +16,7 @@ import NotFound from '@/pages/NotFound';
 import AdminLayout from '@/admin/AdminLayout';
 import AdminDashboard from '@/admin/AdminDashboard';
 import AdminEvent from '@/admin/AdminEvent';
+import AdminCourtesy from '@/admin/AdminCourtesy';
 import AdminTickets from '@/admin/AdminTickets';
 import AdminClients from '@/admin/AdminClients';
 import AdminPayments from '@/admin/AdminPayments';
@@ -53,6 +54,7 @@ export default function App() {
             >
               <Route index element={<AdminDashboard />} />
               <Route path="evento" element={<AdminEvent />} />
+              <Route path="cortesias" element={<AdminCourtesy />} />
               <Route path="ingressos" element={<AdminTickets />} />
               <Route path="clientes" element={<AdminClients />} />
               <Route path="pagamentos" element={<AdminPayments />} />

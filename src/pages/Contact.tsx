@@ -13,17 +13,17 @@ export default function Contact() {
         <p className="mt-3 text-white/50">Dúvidas sobre um ingresso, um evento ou quer vender com a Noite Goiana? É só chamar.</p>
 
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <a href="mailto:contato@noitegoiana.com.br" className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center hover:border-violet-500/40">
+          <a href="mailto:gswprodeventos@gmail.com" className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center hover:border-violet-500/40">
             <Mail size={22} className="text-violet-400" />
-            <span className="text-sm text-white">contato@noitegoiana.com.br</span>
+            <span className="text-sm text-white">gswprodeventos@gmail.com</span>
           </a>
-          <a href="https://wa.me/5562900000000" target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center hover:border-violet-500/40">
+          <a href="https://wa.me/5561982804443" target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center hover:border-violet-500/40">
             <MessageCircle size={22} className="text-violet-400" />
             <span className="text-sm text-white">WhatsApp</span>
           </a>
-          <a href="https://instagram.com/noitegoiana" target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center hover:border-violet-500/40">
+          <a href="https://instagram.com/noitegoianafsa" target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center hover:border-violet-500/40">
             <Instagram size={22} className="text-violet-400" />
-            <span className="text-sm text-white">@noitegoiana</span>
+            <span className="text-sm text-white">@noitegoianafsa</span>
           </a>
         </div>
 

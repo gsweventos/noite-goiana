@@ -1,3 +1,19 @@
+/**
+ * O Firestore devolve campos de data/hora como um objeto "Timestamp" (com
+ * método .toDate()), não como texto — mesmo o código salvando com
+ * serverTimestamp(). Esse helper converte isso para uma string ISO comum,
+ * do jeito que o resto do app espera (ex: para passar em formatDateTime).
+ * Se já vier como string (modo demonstração, sem Firestore), devolve como está.
+ */
+export function timestampParaIso(valor: unknown): string {
+  if (!valor) return new Date().toISOString();
+  if (typeof valor === 'string') return valor;
+  if (valor && typeof valor === 'object' && 'toDate' in valor && typeof (valor as any).toDate === 'function') {
+    return (valor as { toDate: () => Date }).toDate().toISOString();
+  }
+  return new Date().toISOString();
+}
+
 export function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
@@ -49,6 +65,25 @@ export function maskPhone(value: string): string {
     .slice(0, 11)
     .replace(/(\d{2})(\d)/, '($1) $2')
     .replace(/(\d{5})(\d{1,4})$/, '$1-$2');
+}
+
+/** Máscara simples de data: 00/00/0000 */
+export function maskDate(value: string): string {
+  return value
+    .replace(/\D/g, '')
+    .slice(0, 8)
+    .replace(/(\d{2})(\d)/, '$1/$2')
+    .replace(/(\d{2})(\d{1,4})$/, '$1/$2');
+}
+
+/** Confere se uma data no formato DD/MM/AAAA é uma data real e não está no futuro. */
+export function isValidBirthDate(value: string): boolean {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return false;
+  const [, dia, mes, ano] = match.map(Number) as unknown as [string, number, number, number];
+  const data = new Date(ano, mes - 1, dia);
+  const valida = data.getFullYear() === ano && data.getMonth() === mes - 1 && data.getDate() === dia;
+  return valida && data <= new Date() && ano >= 1900;
 }
 
 /** Validação de CPF (algoritmo de dígitos verificadores) */

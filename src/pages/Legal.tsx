@@ -13,7 +13,7 @@ export function PrivacyPolicy() {
           estritamente necessários para processar o pagamento (Mercado Pago) e a autenticação (Firebase).
         </p>
         <p className="mt-4 leading-relaxed">
-          Você pode solicitar a exclusão dos seus dados a qualquer momento pelo e-mail contato@noitegoiana.com.br.
+          Você pode solicitar a exclusão dos seus dados a qualquer momento pelo e-mail gswprodeventos@gmail.com.
         </p>
       </section>
     </>

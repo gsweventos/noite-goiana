@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -18,10 +18,18 @@ export default function Login() {
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { loginWithEmail, loginWithGoogle, register, resetPassword } = useAuth();
+  const { user, loginWithEmail, loginWithGoogle, register, resetPassword } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string })?.from ?? '/painel';
+
+  // Só redireciona quando o contexto realmente confirmar que o usuário está
+  // logado — evita o caso de navegar pro /painel um instante antes dessa
+  // confirmação chegar, o que fazia a página protegida devolver a pessoa
+  // pro /login mesmo o login tendo funcionado.
+  useEffect(() => {
+    if (user) navigate(from, { replace: true });
+  }, [user, from, navigate]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -31,10 +39,8 @@ export default function Login() {
     try {
       if (mode === 'login') {
         await loginWithEmail(email, senha);
-        navigate(from, { replace: true });
       } else if (mode === 'cadastro') {
         await register(nome, email, senha);
-        navigate(from, { replace: true });
       } else {
         await resetPassword(email);
         setMensagem('Se o e-mail existir em nossa base, enviaremos um link de redefinição.');
@@ -104,7 +110,7 @@ export default function Login() {
                 <div className="h-px flex-1 bg-white/10" /> ou <div className="h-px flex-1 bg-white/10" />
               </div>
               <button
-                onClick={() => loginWithGoogle().then(() => navigate(from, { replace: true }))}
+                onClick={() => loginWithGoogle()}
                 className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 px-6 py-3 text-sm font-medium text-white hover:border-white/30"
               >
                 <Chrome size={16} /> Continuar com Google

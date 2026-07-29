@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { QrCode, Download, User as UserIcon, Ticket as TicketIcon } from 'lucide-react';
+import { QrCode, Download, Loader2, User as UserIcon, Ticket as TicketIcon } from 'lucide-react';
 import { Seo } from '@/components/Seo';
 import { Spinner } from '@/components/Spinner';
 import { useAuth } from '@/context/AuthContext';
@@ -12,12 +12,15 @@ import { formatDateTime } from '@/utils/format';
 
 type Tab = 'ingressos' | 'dados';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string | undefined;
+
 export default function ClientDashboard() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('ingressos');
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrCache, setQrCache] = useState<Record<string, string>>({});
+  const [baixando, setBaixando] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -28,6 +31,31 @@ export default function ClientDashboard() {
       setQrCache(Object.fromEntries(entries));
     });
   }, [user]);
+
+  async function baixarPdf(ticket: Ticket) {
+    if (!API_BASE_URL) {
+      alert('O download do PDF só funciona com o backend configurado (modo demonstração).');
+      return;
+    }
+    setBaixando(ticket.id);
+    try {
+      const res = await fetch(`${API_BASE_URL}/tickets/${ticket.id}/pdf`);
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ingresso-${ticket.codigo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Não foi possível baixar o PDF agora. Tenta de novo em instantes.');
+    } finally {
+      setBaixando(null);
+    }
+  }
 
   return (
     <>
@@ -66,8 +94,13 @@ export default function ClientDashboard() {
                         <h3 className="font-display font-bold text-white">{t.eventoNome}</h3>
                         <p className="text-sm text-white/50">{t.lotNome} · Ingresso #{t.numero}</p>
                         <p className="mt-1 text-xs text-white/40">Comprado em {formatDateTime(t.criadoEm)}</p>
-                        <button className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-1.5 text-xs font-medium text-white hover:border-violet-500/50">
-                          <Download size={13} /> Baixar PDF
+                        <button
+                          onClick={() => baixarPdf(t)}
+                          disabled={baixando === t.id}
+                          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-1.5 text-xs font-medium text-white hover:border-violet-500/50 disabled:opacity-60"
+                        >
+                          {baixando === t.id ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                          {baixando === t.id ? 'Gerando...' : 'Baixar PDF'}
                         </button>
                       </div>
                     </div>
