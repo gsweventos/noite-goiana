@@ -27,6 +27,7 @@ export async function confirmarPagamentoPorMpId(mpPaymentId: string | number): P
   const paymentRef = db.collection('payments').doc(externalReference);
 
   await db.runTransaction(async (tx) => {
+    // --- Fase 1: TODAS as leituras primeiro (exigência do Firestore) ---
     const paySnap = await tx.get(paymentRef);
     if (!paySnap.exists) return;
     const payment = paySnap.data()!;
@@ -37,6 +38,10 @@ export async function confirmarPagamentoPorMpId(mpPaymentId: string | number): P
     const novoStatus =
       status === 'approved' ? 'aprovado' : status === 'rejected' ? 'rejeitado' : 'em_analise';
 
+    const eventRef = db.collection('events').doc(payment.eventoId);
+    const eventSnap = novoStatus === 'aprovado' ? await tx.get(eventRef) : null;
+
+    // --- Fase 2: agora sim, as escritas ---
     tx.update(paymentRef, {
       status: novoStatus,
       mpPaymentId: String(mpPaymentId),
@@ -44,13 +49,11 @@ export async function confirmarPagamentoPorMpId(mpPaymentId: string | number): P
     });
 
     if (novoStatus !== 'aprovado') return;
+    if (!eventSnap || !eventSnap.exists) return;
 
     // Pagamento aprovado: debita o lote e gera os ingressos DENTRO da
     // transação, para nunca vender além da quantidade disponível mesmo sob
     // concorrência (ex.: webhook e polling chegando quase ao mesmo tempo).
-    const eventRef = db.collection('events').doc(payment.eventoId);
-    const eventSnap = await tx.get(eventRef);
-    if (!eventSnap.exists) return;
     const evento = eventSnap.data()!;
     const lotes = evento.lotes as any[];
     const loteIndex = lotes.findIndex((l) => l.id === payment.lotId);
