@@ -13,31 +13,49 @@ export default function Checkin() {
   const { user } = useAuth();
   const scannerRef = useRef<HTMLDivElement>(null);
   const [result, setResult] = useState<CheckinResponse | null>(null);
-  const [scanning, setScanning] = useState(true);
-  const [lastScanTime, setLastScanTime] = useState(0);
   const [totalCheckins, setTotalCheckins] = useState(0);
 
+  // Usamos refs (não useState) pra travar leituras duplicadas: o leitor de
+  // câmera pode disparar o callback mais de uma vez para o MESMO QR Code em
+  // uma fração de segundo (varre a cada frame), e o estado do React só
+  // atualiza no próximo render — rápido demais pra esse controle. A ref
+  // muda na hora, então a segunda leitura é ignorada de verdade antes de
+  // chegar a chamar o backend (evitando o falso "já utilizado").
+  const processandoRef = useRef(false);
+  const html5QrCodeRef = useRef<import('html5-qrcode').Html5Qrcode | null>(null);
+
   useEffect(() => {
-    let html5QrCode: import('html5-qrcode').Html5Qrcode | null = null;
     let cancelled = false;
 
     (async () => {
       const { Html5Qrcode } = await import('html5-qrcode');
       if (cancelled || !scannerRef.current) return;
-      html5QrCode = new Html5Qrcode('checkin-reader');
+      const html5QrCode = new Html5Qrcode('checkin-reader');
+      html5QrCodeRef.current = html5QrCode;
 
       try {
         await html5QrCode.start(
           { facingMode: 'environment' },
           { fps: 10, qrbox: { width: 250, height: 250 } },
           async (decodedText) => {
-            const now = Date.now();
-            if (now - lastScanTime < 2500) return; // evita leituras duplicadas em sequência
-            setLastScanTime(now);
-            setScanning(false);
-            const response = await checkinService.validateQr(decodedText, user?.id ?? 'operador');
-            setResult(response);
-            if (response.resultado === 'autorizado') setTotalCheckins((c) => c + 1);
+            if (processandoRef.current) return; // já tem uma leitura em andamento — ignora
+            processandoRef.current = true;
+
+            // Congela a câmera no frame atual assim que detecta um código,
+            // pra parar de tentar ler novos frames enquanto mostra o resultado.
+            try {
+              await html5QrCode.pause(true);
+            } catch {
+              /* se já estiver pausado/parado, tudo bem */
+            }
+
+            try {
+              const response = await checkinService.validateQr(decodedText, user?.id ?? 'operador');
+              setResult(response);
+              if (response.resultado === 'autorizado') setTotalCheckins((c) => c + 1);
+            } finally {
+              processandoRef.current = false;
+            }
           },
           () => {
             /* erro de leitura por frame — ignorado silenciosamente */
@@ -50,14 +68,18 @@ export default function Checkin() {
 
     return () => {
       cancelled = true;
-      html5QrCode?.stop().catch(() => {});
+      html5QrCodeRef.current?.stop().catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function novoScan() {
     setResult(null);
-    setScanning(true);
+    try {
+      html5QrCodeRef.current?.resume();
+    } catch {
+      /* se não der pra retomar (ex.: câmera já parada), o próximo useEffect cuida */
+    }
   }
 
   return (
@@ -73,14 +95,12 @@ export default function Checkin() {
         </div>
         <p className="mt-1 text-sm text-white/50">Operador: {user?.nome}</p>
 
-        {scanning && !result && (
-          <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
-            <div id="checkin-reader" ref={scannerRef} className="aspect-square w-full bg-black" />
-            <div className="flex items-center justify-center gap-2 bg-white/5 py-3 text-xs text-white/50">
-              <ScanLine size={14} className="animate-pulse-slow text-violet-400" /> Aponte a câmera para o QR Code do ingresso
-            </div>
+        <div className={`mt-6 overflow-hidden rounded-2xl border border-white/10 ${result ? 'hidden' : ''}`}>
+          <div id="checkin-reader" ref={scannerRef} className="aspect-square w-full bg-black" />
+          <div className="flex items-center justify-center gap-2 bg-white/5 py-3 text-xs text-white/50">
+            <ScanLine size={14} className="animate-pulse-slow text-violet-400" /> Aponte a câmera para o QR Code do ingresso
           </div>
-        )}
+        </div>
 
         {result && (
           <div
