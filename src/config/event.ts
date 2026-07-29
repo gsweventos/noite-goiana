@@ -37,7 +37,9 @@ export const MAIN_EVENT: EventItem = {
   capacidade: 0,
   lotes: [],
   regulamento:
-    'Ingresso pessoal e intransferível, vinculado ao CPF do comprador. O evento contará com esquema de segurança reforçado do início ao fim, para garantir uma noite tranquila para todos.',
+    'Ingresso pessoal e intransferível, vinculado ao CPF do comprador. O evento contará com esquema de segurança reforçado do início ao fim, para garantir uma noite tranquila para todos. Ingressos femininos e masculinos têm valores diferentes e estão sujeitos à conferência de documento com foto na entrada — a organização se reserva o direito de negar entrada ou cobrar a diferença de valor em caso de divergência.',
+  avisoImportante:
+    'Ingressos femininos e masculinos têm valores diferentes. Documento com foto será conferido na entrada — leve o seu.',
   status: 'publicado',
   destaque: true,
   criadoEm: '2026-07-28T00:00:00-03:00',

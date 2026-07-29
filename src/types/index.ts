@@ -33,6 +33,8 @@ export interface TicketLot {
   dataInicio: string; // ISO
   dataFim: string; // ISO
   ativo: boolean;
+  genero?: 'feminino' | 'masculino'; // ausente = lote unissex
+  grupo?: string; // lotes com o mesmo grupo aparecem juntos no site (ex: feminino/masculino do mesmo "1º Lote")
 }
 
 export type EventStatus = 'rascunho' | 'publicado' | 'esgotado' | 'encerrado' | 'cancelado';
@@ -63,6 +65,7 @@ export interface EventItem {
   capacidade: number;
   lotes: TicketLot[];
   regulamento: string;
+  avisoImportante?: string; // destacado visualmente na página do evento (ex: conferência de documento na entrada)
   status: EventStatus;
   destaque?: boolean;
   criadoEm: string;

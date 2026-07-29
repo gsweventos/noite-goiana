@@ -19,6 +19,7 @@ interface EventFormValues {
   estado: string;
   dataInicio: string;
   regulamento: string;
+  avisoImportante: string;
   lotes: TicketLot[];
 }
 
@@ -46,6 +47,7 @@ export default function AdminEvent() {
       estado: 'GO',
       dataInicio: '',
       regulamento: '',
+      avisoImportante: '',
       lotes: [],
     },
   });
@@ -68,6 +70,7 @@ export default function AdminEvent() {
         estado: found.local.estado,
         dataInicio: found.dataInicio.slice(0, 16),
         regulamento: found.regulamento,
+        avisoImportante: found.avisoImportante ?? '',
         lotes: found.lotes,
       });
       setLotesSalvos(found.lotes.map((l) => l.id));
@@ -131,8 +134,13 @@ export default function AdminEvent() {
       organizador: values.organizador,
       local: { local: values.local, endereco: values.endereco, cidade: values.cidade, estado: values.estado },
       dataInicio: new Date(values.dataInicio).toISOString(),
-      lotes: values.lotes,
+      lotes: values.lotes.map((lote) => ({
+        ...lote,
+        genero: lote.genero || undefined,
+        grupo: lote.grupo || undefined,
+      })),
       regulamento: values.regulamento,
+      avisoImportante: values.avisoImportante || undefined,
       status: 'publicado',
     };
 
@@ -180,7 +188,10 @@ export default function AdminEvent() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-display text-sm font-bold text-white">Lotes de ingresso</h2>
-              <p className="mt-1 text-xs text-white/40">Sem nenhum lote aqui, o site mostra "Lotes em breve" para os visitantes.</p>
+              <p className="mt-1 text-xs text-white/40">
+                Sem nenhum lote aqui, o site mostra "Lotes em breve" para os visitantes. Pra ter preço diferente
+                pra homem e mulher no mesmo lote: cadastra dois lotes com o <strong>mesmo texto em "Grupo"</strong> (ex: "1º Lote" nos dois) e define o "Gênero" de cada um — o site mostra os dois juntos, lado a lado.
+              </p>
             </div>
             <button
               type="button"
@@ -193,24 +204,38 @@ export default function AdminEvent() {
 
           <div className="mt-4 space-y-4">
             {fields.map((field, index) => (
-              <div key={field.id} className="grid grid-cols-2 gap-3 rounded-xl border border-white/10 p-4 sm:grid-cols-4">
-                <F label="Nome do lote"><input {...register(`lotes.${index}.nome` as const)} className="input" placeholder="Ex: 1º Lote" /></F>
-                <F label="Preço (R$)"><input type="number" step="0.01" {...register(`lotes.${index}.preco` as const, { valueAsNumber: true })} className="input" /></F>
-                <F label="Quantidade"><input type="number" {...register(`lotes.${index}.quantidadeTotal` as const, { valueAsNumber: true })} className="input" /></F>
-                <div className="flex items-end justify-between gap-2">
-                  <label className="flex items-center gap-2 pb-2 text-sm text-white/70">
-                    <input type="checkbox" {...register(`lotes.${index}.ativo` as const)} className="h-4 w-4 rounded border-white/20 bg-ink-900 accent-violet-600" />
-                    Ativo para venda
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => excluirLote(index, getValues(`lotes.${index}.id`), getValues(`lotes.${index}.nome`))}
-                    disabled={apagandoLote === getValues(`lotes.${index}.id`)}
-                    className="mb-1 rounded-lg p-2 text-red-400 hover:bg-red-500/10 disabled:opacity-50"
-                    aria-label="Apagar lote"
-                  >
-                    {apagandoLote === getValues(`lotes.${index}.id`) ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-                  </button>
+              <div key={field.id} className="space-y-3 rounded-xl border border-white/10 p-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <F label="Nome do lote"><input {...register(`lotes.${index}.nome` as const)} className="input" placeholder="Ex: 1º Lote" /></F>
+                  <F label="Preço (R$)"><input type="number" step="0.01" {...register(`lotes.${index}.preco` as const, { valueAsNumber: true })} className="input" /></F>
+                  <F label="Quantidade"><input type="number" {...register(`lotes.${index}.quantidadeTotal` as const, { valueAsNumber: true })} className="input" /></F>
+                  <div className="flex items-end justify-between gap-2">
+                    <label className="flex items-center gap-2 pb-2 text-sm text-white/70">
+                      <input type="checkbox" {...register(`lotes.${index}.ativo` as const)} className="h-4 w-4 rounded border-white/20 bg-ink-900 accent-violet-600" />
+                      Ativo
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => excluirLote(index, getValues(`lotes.${index}.id`), getValues(`lotes.${index}.nome`))}
+                      disabled={apagandoLote === getValues(`lotes.${index}.id`)}
+                      className="mb-1 rounded-lg p-2 text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                      aria-label="Apagar lote"
+                    >
+                      {apagandoLote === getValues(`lotes.${index}.id`) ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 border-t border-white/5 pt-3">
+                  <F label="Gênero (opcional)">
+                    <select {...register(`lotes.${index}.genero` as const)} className="input">
+                      <option value="">Unissex (sem diferença)</option>
+                      <option value="feminino">Feminino</option>
+                      <option value="masculino">Masculino</option>
+                    </select>
+                  </F>
+                  <F label="Grupo (opcional)">
+                    <input {...register(`lotes.${index}.grupo` as const)} className="input" placeholder="Ex: 1º Lote (deixe igual no par F/M)" />
+                  </F>
                 </div>
               </div>
             ))}
@@ -220,6 +245,12 @@ export default function AdminEvent() {
               </p>
             )}
           </div>
+        </section>
+
+        <section className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.03] p-6">
+          <h2 className="font-display text-sm font-bold text-amber-200">Aviso em destaque no site</h2>
+          <p className="mt-1 text-xs text-white/40">Aparece bem visível na página inicial, logo acima dos ingressos (ex: aviso de conferência de documento). Deixe em branco pra não mostrar nada.</p>
+          <textarea {...register('avisoImportante')} rows={2} className="input mt-4 resize-none" placeholder="Ex: Ingressos femininos e masculinos têm valores diferentes. Documento com foto será conferido na entrada." />
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">

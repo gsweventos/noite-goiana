@@ -1,13 +1,54 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, ShieldAlert, Instagram, MessageCircle, Ticket } from 'lucide-react';
+import { MapPin, Calendar, ShieldAlert, Instagram, MessageCircle, Ticket, AlertTriangle } from 'lucide-react';
 import { Seo } from '@/components/Seo';
 import { Spinner } from '@/components/Spinner';
 import { Logo } from '@/components/Logo';
 import { eventsService } from '@/services/eventsService';
 import { EventItem, TicketLot } from '@/types';
 import { formatCurrency, formatDateTime, lotProgress } from '@/utils/format';
+
+/**
+ * Agrupa lotes que compartilham o campo `grupo` (ex: versão feminina e
+ * masculina do "1º Lote") pra exibir lado a lado num único card. Lotes sem
+ * grupo (ou com um grupo usado por só um lote) continuam aparecendo sozinhos,
+ * do jeito de sempre.
+ */
+type GrupoDeLotes = { chave: string; titulo: string | null; lotes: TicketLot[] };
+
+function agruparLotes(lotes: TicketLot[]): GrupoDeLotes[] {
+  const porGrupo = new Map<string, TicketLot[]>();
+  const semGrupo: TicketLot[] = [];
+
+  for (const lote of lotes) {
+    if (lote.grupo) {
+      const lista = porGrupo.get(lote.grupo) ?? [];
+      lista.push(lote);
+      porGrupo.set(lote.grupo, lista);
+    } else {
+      semGrupo.push(lote);
+    }
+  }
+
+  const grupos: GrupoDeLotes[] = [];
+  for (const [grupo, lotesDoGrupo] of porGrupo) {
+    if (lotesDoGrupo.length > 1) {
+      grupos.push({ chave: grupo, titulo: grupo, lotes: lotesDoGrupo });
+    } else {
+      semGrupo.push(...lotesDoGrupo);
+    }
+  }
+  for (const lote of semGrupo) {
+    grupos.push({ chave: lote.id, titulo: null, lotes: [lote] });
+  }
+  return grupos;
+}
+
+const GENERO_LABEL: Record<'feminino' | 'masculino', string> = {
+  feminino: 'Feminino',
+  masculino: 'Masculino',
+};
 
 export default function Home() {
   const [event, setEvent] = useState<EventItem | null>(null);
@@ -41,6 +82,7 @@ export default function Home() {
   const esgotado = lotesDefinidos && event.lotes.every((l) => l.quantidadeVendida >= l.quantidadeTotal);
   const temLocal = Boolean(event.local.endereco);
   const mapQuery = encodeURIComponent(`${event.local.local}, ${event.local.endereco}, ${event.local.cidade} - ${event.local.estado}`);
+  const gruposDeLotes = agruparLotes(event.lotes);
 
   return (
     <>
@@ -111,6 +153,23 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Aviso importante — bem destacado, ninguém pode deixar de ver */}
+      {event.avisoImportante && (
+        <section className="mx-auto max-w-3xl px-4 pt-10 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="flex items-start gap-3 rounded-2xl border-2 border-amber-500/40 bg-amber-500/10 p-4 sm:p-5"
+          >
+            <AlertTriangle size={22} className="mt-0.5 shrink-0 text-amber-400" />
+            <p className="text-sm font-medium leading-relaxed text-amber-200 sm:text-base">
+              {event.avisoImportante}
+            </p>
+          </motion.div>
+        </section>
+      )}
+
       {/* Ingressos */}
       <section id="ingressos" className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8">
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 sm:p-10">
@@ -147,7 +206,46 @@ export default function Home() {
           {lotesDefinidos && (
             <>
               <div className="mt-6 space-y-3">
-                {event.lotes.map((lot) => {
+                {gruposDeLotes.map((grupo) => {
+                  // Grupo com mais de um lote (ex: feminino + masculino) — um
+                  // card só, com as opções lado a lado.
+                  if (grupo.titulo) {
+                    return (
+                      <div key={grupo.chave} className="rounded-xl border border-white/10 p-4">
+                        <span className="text-sm font-semibold text-white">{grupo.titulo}</span>
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          {grupo.lotes.map((lot) => {
+                            const lotEsgotado = lot.quantidadeVendida >= lot.quantidadeTotal;
+                            const selecionado = selectedLot?.id === lot.id;
+                            const label = lot.genero ? GENERO_LABEL[lot.genero] : lot.nome;
+                            return (
+                              <button
+                                key={lot.id}
+                                disabled={lotEsgotado || !lot.ativo}
+                                onClick={() => setSelectedLot(lot)}
+                                className={`rounded-lg border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                                  selecionado ? 'border-violet-500 bg-violet-600/10' : 'border-white/10 hover:border-white/20'
+                                }`}
+                              >
+                                <span className={`block text-xs font-semibold uppercase tracking-wide ${
+                                  lot.genero === 'feminino' ? 'text-pink-300' : lot.genero === 'masculino' ? 'text-sky-300' : 'text-white/70'
+                                }`}>
+                                  {label}
+                                </span>
+                                <span className="mt-1 block font-display text-base font-bold text-white">{formatCurrency(lot.preco)}</span>
+                                <span className="mt-1 block text-[11px] text-white/40">
+                                  {lotEsgotado ? 'Esgotado' : !lot.ativo ? 'Em breve' : `${lot.quantidadeTotal - lot.quantidadeVendida} restantes`}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Lote individual (sem par de gênero) — mesmo visual de sempre.
+                  const lot = grupo.lotes[0];
                   const lotEsgotado = lot.quantidadeVendida >= lot.quantidadeTotal;
                   const progresso = lotProgress(lot.quantidadeVendida, lot.quantidadeTotal);
                   const selecionado = selectedLot?.id === lot.id;
@@ -161,7 +259,16 @@ export default function Home() {
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-white">{lot.nome}</span>
+                        <span className="text-sm font-semibold text-white">
+                          {lot.nome}
+                          {lot.genero && (
+                            <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                              lot.genero === 'feminino' ? 'bg-pink-500/15 text-pink-300' : 'bg-sky-500/15 text-sky-300'
+                            }`}>
+                              {GENERO_LABEL[lot.genero]}
+                            </span>
+                          )}
+                        </span>
                         <span className="font-display text-base font-bold text-white">{formatCurrency(lot.preco)}</span>
                       </div>
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
@@ -184,7 +291,7 @@ export default function Home() {
                     : 'bg-cta-gradient shadow-neon hover:scale-[1.02]'
                 }`}
               >
-                {esgotado ? 'Ingressos esgotados' : 'Comprar ingresso'}
+                {esgotado ? 'Ingressos esgotados' : !selectedLot ? 'Escolha uma opção acima' : 'Comprar ingresso'}
               </Link>
             </>
           )}
