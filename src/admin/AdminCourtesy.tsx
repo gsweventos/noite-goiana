@@ -5,6 +5,7 @@ import { Gift, Loader2, CheckCircle2 } from 'lucide-react';
 import { Seo } from '@/components/Seo';
 import { eventsService } from '@/services/eventsService';
 import { courtesyService } from '@/services/courtesyService';
+import { adminManageService } from '@/services/adminManageService';
 import { EventItem } from '@/types';
 import { isValidCpf, maskCpf, maskDate, maskPhone } from '@/utils/format';
 
@@ -29,6 +30,8 @@ export default function AdminCourtesy() {
   const [saving, setSaving] = useState(false);
   const [sucesso, setSucesso] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [corrigindo, setCorrigindo] = useState(false);
+  const [resultadoCorrecao, setResultadoCorrecao] = useState<string | null>(null);
 
   const {
     register,
@@ -52,6 +55,24 @@ export default function AdminCourtesy() {
   const total = event?.cortesias?.quantidadeTotal ?? 0;
   const usadas = event?.cortesias?.quantidadeUsada ?? 0;
   const disponiveis = total - usadas;
+
+  async function corrigirAntigas() {
+    setCorrigindo(true);
+    setResultadoCorrecao(null);
+    try {
+      const resultado = await adminManageService.corrigirCortesiasAntigas();
+      setResultadoCorrecao(
+        resultado.corrigidos > 0
+          ? `Pronto! ${resultado.corrigidos} cortesia(s) antiga(s) corrigida(s).`
+          : (resultado.mensagem ?? 'Nada para corrigir.')
+      );
+      await carregar();
+    } catch (e) {
+      setResultadoCorrecao(e instanceof Error ? e.message : 'Não foi possível corrigir.');
+    } finally {
+      setCorrigindo(false);
+    }
+  }
 
   async function onSubmit(values: CourtesyFormValues) {
     setErro(null);
@@ -102,6 +123,27 @@ export default function AdminCourtesy() {
           {total === 0
             ? 'Nenhuma reserva de cortesias configurada ainda'
             : `${disponiveis} de ${total} cortesias disponíveis`}
+        </div>
+      )}
+
+      {event && total > 0 && (
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-4">
+          <div className="flex-1">
+            <p className="text-xs font-medium text-white/70">Correção única: cortesias liberadas antes dessa reserva existir</p>
+            <p className="mt-0.5 text-xs text-white/40">
+              Se você já tinha dado cortesias antes (vinculadas a um lote de venda), clica aqui pra corrigir de vez —
+              devolve a vaga pro lote e passa a contar aqui na reserva. Seguro rodar mais de uma vez.
+            </p>
+            {resultadoCorrecao && <p className="mt-1.5 text-xs text-emerald-400">{resultadoCorrecao}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={corrigirAntigas}
+            disabled={corrigindo}
+            className="shrink-0 rounded-full border border-white/15 px-4 py-2 text-xs font-medium text-white hover:border-violet-500/50 disabled:opacity-60"
+          >
+            {corrigindo ? 'Corrigindo...' : 'Corrigir agora'}
+          </button>
         </div>
       )}
 

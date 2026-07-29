@@ -37,4 +37,9 @@ export const adminManageService = {
   async deleteTicket(ticketId: string): Promise<void> {
     await chamarComoAdmin('/admin/delete-ticket', { ticketId });
   },
+
+  /** Ferramenta única: corrige cortesias antigas para o modelo de reserva separada. */
+  async corrigirCortesiasAntigas(): Promise<{ corrigidos: number; mensagem?: string }> {
+    return chamarComoAdmin('/admin/corrigir-cortesias-antigas', {});
+  },
 };
