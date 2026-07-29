@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Trash2, Loader2 } from 'lucide-react';
 import { Seo } from '@/components/Seo';
 import { adminPaymentsService } from '@/services/adminPaymentsService';
+import { adminManageService } from '@/services/adminManageService';
 import { Payment } from '@/types';
 import { formatCurrency, formatDateTime } from '@/utils/format';
 
@@ -23,13 +25,34 @@ const STATUS_COR: Record<string, string> = {
 export default function AdminPayments() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [apagando, setApagando] = useState<string | null>(null);
 
-  useEffect(() => {
+  function carregar() {
+    setLoading(true);
     adminPaymentsService.listAll().then((data) => {
       setPayments(data);
       setLoading(false);
     });
-  }, []);
+  }
+
+  useEffect(carregar, []);
+
+  async function apagar(p: Payment) {
+    const confirmado = confirm(
+      `Apagar o pagamento de ${p.compradorNome}?\n\nIsso também apaga o(s) ingresso(s) gerado(s) por ele. Não tem como desfazer.`
+    );
+    if (!confirmado) return;
+
+    setApagando(p.id);
+    try {
+      await adminManageService.deletePayment(p.id);
+      setPayments((prev) => prev.filter((x) => x.id !== p.id));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Não foi possível apagar.');
+    } finally {
+      setApagando(null);
+    }
+  }
 
   return (
     <>
@@ -47,14 +70,15 @@ export default function AdminPayments() {
               <th className="px-4 py-3 font-medium">Data</th>
               <th className="px-4 py-3 font-medium">Origem</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {loading && (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-white/40">Carregando...</td></tr>
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-white/40">Carregando...</td></tr>
             )}
             {!loading && payments.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-white/40">Nenhum pagamento ainda.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-white/40">Nenhum pagamento ainda.</td></tr>
             )}
             {payments.map((p) => (
               <tr key={p.id} className="hover:bg-white/[0.02]">
@@ -71,6 +95,16 @@ export default function AdminPayments() {
                   <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COR[p.status] ?? 'bg-white/10 text-white/60'}`}>
                     {STATUS_LABEL[p.status] ?? p.status}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => apagar(p)}
+                    disabled={apagando === p.id}
+                    className="rounded-lg p-1.5 text-white/40 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+                    aria-label="Apagar pagamento"
+                  >
+                    {apagando === p.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                  </button>
                 </td>
               </tr>
             ))}

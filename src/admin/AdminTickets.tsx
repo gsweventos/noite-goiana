@@ -1,16 +1,41 @@
 import { useEffect, useState } from 'react';
+import { Trash2, Loader2 } from 'lucide-react';
 import { Seo } from '@/components/Seo';
 import { ticketsService } from '@/services/ticketsService';
+import { adminManageService } from '@/services/adminManageService';
 import { EVENT_ID } from '@/config/event';
 import { Ticket } from '@/types';
 import { formatDateTime } from '@/utils/format';
 
 export default function AdminTickets() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [apagando, setApagando] = useState<string | null>(null);
 
-  useEffect(() => {
-    ticketsService.listByEvent(EVENT_ID).then(setTickets);
-  }, []);
+  function carregar() {
+    setLoading(true);
+    ticketsService.listByEvent(EVENT_ID).then((data) => {
+      setTickets(data);
+      setLoading(false);
+    });
+  }
+
+  useEffect(carregar, []);
+
+  async function apagar(t: Ticket) {
+    const confirmado = confirm(`Apagar o ingresso ${t.codigo} (${t.compradorNome})?\n\nNão tem como desfazer.`);
+    if (!confirmado) return;
+
+    setApagando(t.id);
+    try {
+      await adminManageService.deleteTicket(t.id);
+      setTickets((prev) => prev.filter((x) => x.id !== t.id));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Não foi possível apagar.');
+    } finally {
+      setApagando(null);
+    }
+  }
 
   return (
     <>
@@ -27,11 +52,15 @@ export default function AdminTickets() {
               <th className="px-4 py-3 font-medium">Comprador</th>
               <th className="px-4 py-3 font-medium">Emitido em</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {tickets.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-white/40">Nenhum ingresso emitido ainda.</td></tr>
+            {loading && (
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-white/40">Carregando...</td></tr>
+            )}
+            {!loading && tickets.length === 0 && (
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-white/40">Nenhum ingresso emitido ainda.</td></tr>
             )}
             {tickets.map((t) => (
               <tr key={t.id} className="hover:bg-white/[0.02]">
@@ -46,6 +75,16 @@ export default function AdminTickets() {
                   }`}>
                     {t.status === 'valido' ? 'Válido' : t.status === 'utilizado' ? 'Utilizado' : 'Cancelado'}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => apagar(t)}
+                    disabled={apagando === t.id}
+                    className="rounded-lg p-1.5 text-white/40 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+                    aria-label="Apagar ingresso"
+                  >
+                    {apagando === t.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                  </button>
                 </td>
               </tr>
             ))}

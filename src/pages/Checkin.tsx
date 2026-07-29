@@ -15,59 +15,62 @@ export default function Checkin() {
   const [result, setResult] = useState<CheckinResponse | null>(null);
   const [totalCheckins, setTotalCheckins] = useState(0);
 
-  // Usamos refs (não useState) pra travar leituras duplicadas: o leitor de
-  // câmera pode disparar o callback mais de uma vez para o MESMO QR Code em
-  // uma fração de segundo (varre a cada frame), e o estado do React só
-  // atualiza no próximo render — rápido demais pra esse controle. A ref
-  // muda na hora, então a segunda leitura é ignorada de verdade antes de
-  // chegar a chamar o backend (evitando o falso "já utilizado").
+  // Refs (não useState) porque precisam mudar NA HORA, sem esperar o React
+  // re-renderizar — o leitor de câmera roda em um laço próprio e pode tentar
+  // decodificar o mesmo QR Code em mais de um frame antes de darmos conta.
   const processandoRef = useRef(false);
   const html5QrCodeRef = useRef<import('html5-qrcode').Html5Qrcode | null>(null);
+  const userIdRef = useRef(user?.id);
+  userIdRef.current = user?.id;
+
+  async function lerCodigo(decodedText: string) {
+    if (processandoRef.current) return; // já tem uma leitura em andamento — ignora
+    processandoRef.current = true;
+
+    // Para a câmera de vez (não só pausa) assim que detecta um código —
+    // evita que ela continue tentando decodificar o mesmo QR Code enquanto
+    // ainda está apontada pra ele, o que disparava uma segunda leitura
+    // (e fazia o ingresso parecer "já utilizado" logo na primeira vez).
+    try {
+      await html5QrCodeRef.current?.stop();
+    } catch {
+      /* se já estiver parado, tudo bem */
+    }
+
+    try {
+      const response = await checkinService.validateQr(decodedText, userIdRef.current ?? 'operador');
+      setResult(response);
+      if (response.resultado === 'autorizado') setTotalCheckins((c) => c + 1);
+    } finally {
+      processandoRef.current = false;
+    }
+  }
+
+  async function iniciarCamera() {
+    if (!scannerRef.current) return;
+    const { Html5Qrcode } = await import('html5-qrcode');
+    const html5QrCode = html5QrCodeRef.current ?? new Html5Qrcode('checkin-reader');
+    html5QrCodeRef.current = html5QrCode;
+
+    try {
+      await html5QrCode.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          lerCodigo(decodedText);
+        },
+        () => {
+          /* erro de leitura por frame — ignorado silenciosamente */
+        }
+      );
+    } catch {
+      // Câmera indisponível (ex.: sem permissão ou ambiente sem hardware de vídeo).
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      const { Html5Qrcode } = await import('html5-qrcode');
-      if (cancelled || !scannerRef.current) return;
-      const html5QrCode = new Html5Qrcode('checkin-reader');
-      html5QrCodeRef.current = html5QrCode;
-
-      try {
-        await html5QrCode.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          async (decodedText) => {
-            if (processandoRef.current) return; // já tem uma leitura em andamento — ignora
-            processandoRef.current = true;
-
-            // Congela a câmera no frame atual assim que detecta um código,
-            // pra parar de tentar ler novos frames enquanto mostra o resultado.
-            try {
-              await html5QrCode.pause(true);
-            } catch {
-              /* se já estiver pausado/parado, tudo bem */
-            }
-
-            try {
-              const response = await checkinService.validateQr(decodedText, user?.id ?? 'operador');
-              setResult(response);
-              if (response.resultado === 'autorizado') setTotalCheckins((c) => c + 1);
-            } finally {
-              processandoRef.current = false;
-            }
-          },
-          () => {
-            /* erro de leitura por frame — ignorado silenciosamente */
-          }
-        );
-      } catch {
-        // Câmera indisponível (ex.: sem permissão ou ambiente sem hardware de vídeo).
-      }
-    })();
-
+    iniciarCamera();
     return () => {
-      cancelled = true;
       html5QrCodeRef.current?.stop().catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -75,11 +78,7 @@ export default function Checkin() {
 
   function novoScan() {
     setResult(null);
-    try {
-      html5QrCodeRef.current?.resume();
-    } catch {
-      /* se não der pra retomar (ex.: câmera já parada), o próximo useEffect cuida */
-    }
+    iniciarCamera(); // reinicia a câmera do zero pro próximo ingresso
   }
 
   return (

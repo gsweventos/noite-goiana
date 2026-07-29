@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { Plus, Trash2, Save, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Save, CheckCircle2, Loader2 } from 'lucide-react';
 import { Seo } from '@/components/Seo';
 import { eventsService } from '@/services/eventsService';
 import { EventItem, TicketLot } from '@/types';
@@ -30,8 +30,9 @@ interface EventFormValues {
 export default function AdminEvent() {
   const [saving, setSaving] = useState(false);
   const [salvo, setSalvo] = useState(false);
+  const [apagandoLote, setApagandoLote] = useState<string | null>(null);
 
-  const { register, control, handleSubmit, reset } = useForm<EventFormValues>({
+  const { register, control, handleSubmit, reset, getValues } = useForm<EventFormValues>({
     defaultValues: {
       nome: '',
       descricaoCurta: '',
@@ -50,9 +51,10 @@ export default function AdminEvent() {
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'lotes' });
+  const [lotesSalvos, setLotesSalvos] = useState<string[]>([]);
 
-  useEffect(() => {
-    eventsService.getMainEvent().then((found: EventItem) => {
+  function carregar() {
+    return eventsService.getMainEvent().then((found: EventItem) => {
       reset({
         nome: found.nome,
         descricaoCurta: found.descricaoCurta,
@@ -68,8 +70,48 @@ export default function AdminEvent() {
         regulamento: found.regulamento,
         lotes: found.lotes,
       });
+      setLotesSalvos(found.lotes.map((l) => l.id));
+      return found;
     });
+  }
+
+  useEffect(() => {
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reset]);
+
+  /**
+   * Apaga um lote. Se ele já estiver salvo no banco, apaga NA HORA (sem
+   * precisar mexer/salvar o resto do formulário) — busca o evento de
+   * verdade, remove só esse lote e já grava. Se for um lote recém-
+   * adicionado (ainda não salvo), só tira do formulário, sem precisar
+   * chamar o backend.
+   *
+   * ⚠️ Não use isso pra apagar um lote que já tenha ingressos vendidos —
+   * os ingressos já emitidos continuam existindo, só "perdem" o lote de
+   * origem. Pra lotes de teste sem venda, é seguro e rápido.
+   */
+  async function excluirLote(index: number, loteId: string, nomeLote: string) {
+    if (!lotesSalvos.includes(loteId)) {
+      remove(index); // ainda nem foi salvo — só tira do formulário
+      return;
+    }
+
+    const confirmado = confirm(`Apagar o lote "${nomeLote || 'sem nome'}" agora mesmo?\n\nIsso salva na hora, sem precisar clicar em "Salvar alterações".`);
+    if (!confirmado) return;
+
+    setApagandoLote(loteId);
+    try {
+      const atual = await eventsService.getMainEvent();
+      const novosLotes = atual.lotes.filter((l) => l.id !== loteId);
+      await eventsService.update({ ...atual, lotes: novosLotes });
+      await carregar(); // atualiza o formulário com o resultado real
+    } catch {
+      alert('Não foi possível apagar o lote agora. Tenta de novo em instantes.');
+    } finally {
+      setApagandoLote(null);
+    }
+  }
 
   async function onSubmit(values: EventFormValues) {
     setSaving(true);
@@ -160,8 +202,14 @@ export default function AdminEvent() {
                     <input type="checkbox" {...register(`lotes.${index}.ativo` as const)} className="h-4 w-4 rounded border-white/20 bg-ink-900 accent-violet-600" />
                     Ativo para venda
                   </label>
-                  <button type="button" onClick={() => remove(index)} className="mb-1 rounded-lg p-2 text-red-400 hover:bg-red-500/10" aria-label="Remover lote">
-                    <Trash2 size={15} />
+                  <button
+                    type="button"
+                    onClick={() => excluirLote(index, getValues(`lotes.${index}.id`), getValues(`lotes.${index}.nome`))}
+                    disabled={apagandoLote === getValues(`lotes.${index}.id`)}
+                    className="mb-1 rounded-lg p-2 text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                    aria-label="Apagar lote"
+                  >
+                    {apagandoLote === getValues(`lotes.${index}.id`) ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
                   </button>
                 </div>
               </div>
