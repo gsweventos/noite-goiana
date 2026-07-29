@@ -7,7 +7,7 @@ import { Spinner } from '@/components/Spinner';
 import { Logo } from '@/components/Logo';
 import { eventsService } from '@/services/eventsService';
 import { EventItem, TicketLot } from '@/types';
-import { formatCurrency, formatDateTime, lotProgress } from '@/utils/format';
+import { formatCurrency, formatDateTime, lotProgress, precoComTaxa } from '@/utils/format';
 
 /**
  * Agrupa lotes que compartilham o campo `grupo` (ex: versão feminina e
@@ -193,6 +193,9 @@ export default function Home() {
       <section id="ingressos" className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8">
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 sm:p-10">
           <h2 className="font-display text-2xl font-bold text-white">Ingressos</h2>
+          {lotesDefinidos && (
+            <p className="mt-1 text-xs text-white/40">Valores exibidos já incluem a taxa de serviço.</p>
+          )}
 
           {!lotesDefinidos && (
             <div className="mt-6 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
@@ -252,7 +255,7 @@ export default function Home() {
                                 }`}>
                                   {label}
                                 </span>
-                                <span className="mt-1 block font-display text-base font-bold text-white">{formatCurrency(lot.preco)}</span>
+                                <span className="mt-1 block font-display text-base font-bold text-white">{formatCurrency(precoComTaxa(lot.preco))}</span>
                                 <span className="mt-1 block text-[11px] text-white/40">
                                   {lotEsgotado ? 'Esgotado' : !liberado ? 'Em breve' : `${lot.quantidadeTotal - lot.quantidadeVendida} restantes`}
                                 </span>
@@ -290,7 +293,7 @@ export default function Home() {
                             </span>
                           )}
                         </span>
-                        <span className="font-display text-base font-bold text-white">{formatCurrency(lot.preco)}</span>
+                        <span className="font-display text-base font-bold text-white">{formatCurrency(precoComTaxa(lot.preco))}</span>
                       </div>
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
                         <div className="h-full rounded-full bg-cta-gradient" style={{ width: `${progresso}%` }} />

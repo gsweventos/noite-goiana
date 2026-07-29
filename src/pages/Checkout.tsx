@@ -11,7 +11,7 @@ import { Spinner } from '@/components/Spinner';
 import { eventsService } from '@/services/eventsService';
 import { paymentService, CreatePixResponse } from '@/services/paymentService';
 import { EventItem, TicketLot } from '@/types';
-import { formatCurrency, isValidCpf, isValidBirthDate, maskCpf, maskDate, maskPhone } from '@/utils/format';
+import { formatCurrency, isValidCpf, isValidBirthDate, maskCpf, maskDate, maskPhone, precoComTaxa, valorDaTaxa } from '@/utils/format';
 
 const checkoutSchema = z.object({
   nome: z.string().min(3, 'Informe seu nome completo'),
@@ -64,7 +64,9 @@ export default function Checkout() {
   if (!lote) return <Navigate to="/" replace />;
 
   const restantes = lote.quantidadeTotal - lote.quantidadeVendida;
-  const total = lote.preco * quantidade;
+  const precoUnitario = precoComTaxa(lote.preco);
+  const taxaUnitaria = valorDaTaxa(lote.preco);
+  const total = precoUnitario * quantidade;
 
   /** Fica checando o status do pagamento a cada 4s, até aprovar (ou a pessoa sair da página). */
   function iniciarPolling(paymentId: string) {
@@ -175,9 +177,19 @@ export default function Checkout() {
               <span className="text-xs text-white/40">máx. 6 por compra · {restantes} disponíveis</span>
             </div>
 
-            <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
-              <span className="text-white/60">Total</span>
-              <span className="font-display text-2xl font-bold text-white">{formatCurrency(total)}</span>
+            <div className="mt-6 space-y-1.5 border-t border-white/10 pt-4 text-sm">
+              <div className="flex items-center justify-between text-white/50">
+                <span>Ingresso ({quantidade}x)</span>
+                <span>{formatCurrency(lote.preco * quantidade)}</span>
+              </div>
+              <div className="flex items-center justify-between text-white/50">
+                <span>Taxa de serviço</span>
+                <span>{formatCurrency(taxaUnitaria * quantidade)}</span>
+              </div>
+              <div className="flex items-center justify-between pt-2">
+                <span className="font-medium text-white/80">Total</span>
+                <span className="font-display text-2xl font-bold text-white">{formatCurrency(total)}</span>
+              </div>
             </div>
 
             <button

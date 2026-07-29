@@ -14,6 +14,23 @@ export function timestampParaIso(valor: unknown): string {
   return new Date().toISOString();
 }
 
+/**
+ * Taxa de serviço do site, somada em cima do valor que o admin define pro
+ * ingresso — igual funciona em outras plataformas de venda de ingresso.
+ * Mudar esse número aqui já reflete em todo o site (exibição e cobrança).
+ */
+export const TAXA_SITE_PERCENT = 10;
+
+/** Aplica a taxa de serviço sobre o preço base definido pelo admin. */
+export function precoComTaxa(precoBase: number): number {
+  return Math.round(precoBase * (1 + TAXA_SITE_PERCENT / 100) * 100) / 100;
+}
+
+/** Só o valor da taxa (em reais), pra mostrar separado do valor base. */
+export function valorDaTaxa(precoBase: number): number {
+  return Math.round((precoComTaxa(precoBase) - precoBase) * 100) / 100;
+}
+
 export function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }

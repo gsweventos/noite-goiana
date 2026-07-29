@@ -189,6 +189,8 @@ export default function AdminEvent() {
             <div>
               <h2 className="font-display text-sm font-bold text-white">Lotes de ingresso</h2>
               <p className="mt-1 text-xs text-white/40">
+                O <strong>preço que você digita aqui é o valor base</strong> — o site soma automaticamente 10% de taxa de
+                serviço em cima disso na hora de mostrar e cobrar do comprador (ele vê os dois valores separados no checkout).
                 Os lotes ficam disponíveis <strong>na ordem em que aparecem aqui embaixo</strong>: assim que todos os ingressos
                 de um lote (ou par feminino/masculino do mesmo "Grupo") esgotam, o próximo da lista libera sozinho no site —
                 não precisa mexer em nada. O checkbox "Ativo" é só pra pausar manualmente um lote específico, se precisar.
@@ -209,7 +211,7 @@ export default function AdminEvent() {
               <div key={field.id} className="space-y-3 rounded-xl border border-white/10 p-4">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <F label="Nome do lote"><input {...register(`lotes.${index}.nome` as const)} className="input" placeholder="Ex: 1º Lote" /></F>
-                  <F label="Preço (R$)"><input type="number" step="0.01" {...register(`lotes.${index}.preco` as const, { valueAsNumber: true })} className="input" /></F>
+                  <F label="Preço base (R$)"><input type="number" step="0.01" {...register(`lotes.${index}.preco` as const, { valueAsNumber: true })} className="input" /></F>
                   <F label="Quantidade"><input type="number" {...register(`lotes.${index}.quantidadeTotal` as const, { valueAsNumber: true })} className="input" /></F>
                   <div className="flex items-end justify-between gap-2">
                     <label className="flex items-center gap-2 pb-2 text-sm text-white/70">

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { applyCors } from '../_lib/cors';
 import { db, admin } from '../_lib/firebaseAdmin';
 import { mpPayment } from '../_lib/mercadopago';
+import { precoComTaxa } from '../_lib/pricing';
 
 const createPixSchema = z.object({
   eventoId: z.string().min(1),
@@ -50,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(409).json({ error: 'Quantidade indisponível para este lote' });
     }
 
-    const valorTotal = lote.preco * quantidade;
+    const valorTotal = precoComTaxa(lote.preco) * quantidade;
 
     // 1. Cria o registro de pagamento como "pendente" ANTES de falar com o Mercado Pago.
     const paymentRef = db.collection('payments').doc();
