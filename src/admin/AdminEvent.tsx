@@ -20,6 +20,7 @@ interface EventFormValues {
   dataInicio: string;
   regulamento: string;
   avisoImportante: string;
+  cortesiasTotal: number;
   lotes: TicketLot[];
 }
 
@@ -48,6 +49,7 @@ export default function AdminEvent() {
       dataInicio: '',
       regulamento: '',
       avisoImportante: '',
+      cortesiasTotal: 0,
       lotes: [],
     },
   });
@@ -71,6 +73,7 @@ export default function AdminEvent() {
         dataInicio: found.dataInicio.slice(0, 16),
         regulamento: found.regulamento,
         avisoImportante: found.avisoImportante ?? '',
+        cortesiasTotal: found.cortesias?.quantidadeTotal ?? 0,
         lotes: found.lotes,
       });
       setLotesSalvos(found.lotes.map((l) => l.id));
@@ -141,6 +144,10 @@ export default function AdminEvent() {
       })),
       regulamento: values.regulamento,
       avisoImportante: values.avisoImportante || undefined,
+      cortesias: {
+        quantidadeTotal: values.cortesiasTotal || 0,
+        quantidadeUsada: atual.cortesias?.quantidadeUsada ?? 0,
+      },
       status: 'publicado',
     };
 
@@ -248,6 +255,19 @@ export default function AdminEvent() {
                 Nenhum lote cadastrado ainda.
               </p>
             )}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-violet-500/20 bg-violet-600/[0.03] p-6">
+          <h2 className="font-display text-sm font-bold text-white">Cortesias</h2>
+          <p className="mt-1 text-xs text-white/40">
+            Reserva separada dos lotes de venda — não desconta deles nem aparece pro público. Defina aqui quantas cortesias
+            você quer poder liberar no total; depois é só usar a tela <span className="text-white/70">Cortesias</span> no menu pra ir distribuindo.
+          </p>
+          <div className="mt-4 max-w-xs">
+            <F label="Total de cortesias reservadas">
+              <input type="number" min={0} {...register('cortesiasTotal', { valueAsNumber: true, min: 0 })} className="input" />
+            </F>
           </div>
         </section>
 

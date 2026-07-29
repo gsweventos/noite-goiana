@@ -14,15 +14,15 @@ interface CourtesyFormValues {
   telefone: string;
   email: string;
   dataNascimento: string;
-  lotId: string;
   quantidade: number;
   motivo: string;
 }
 
 /**
- * Tela para o admin liberar ingresso(s) sem cobrar nada (cortesia). O
- * ingresso gerado é idêntico a um comprado — tem QR Code, aparece no
- * painel da pessoa, e passa no check-in normalmente.
+ * Tela para o admin liberar ingresso(s) sem cobrar nada (cortesia). Usa uma
+ * reserva PRÓPRIA, separada dos lotes de venda — não desconta deles, e não
+ * aparece pro público em nenhum momento. O ingresso gerado é idêntico a um
+ * comprado: tem QR Code, aparece no painel da pessoa, passa no check-in.
  */
 export default function AdminCourtesy() {
   const [event, setEvent] = useState<EventItem | null>(null);
@@ -41,12 +41,17 @@ export default function AdminCourtesy() {
     defaultValues: { quantidade: 1 },
   });
 
+  function carregar() {
+    return eventsService.getMainEvent().then(setEvent);
+  }
+
   useEffect(() => {
-    eventsService.getMainEvent().then((data) => {
-      setEvent(data);
-      if (data.lotes[0]) setValue('lotId', data.lotes[0].id);
-    });
-  }, [setValue]);
+    carregar();
+  }, []);
+
+  const total = event?.cortesias?.quantidadeTotal ?? 0;
+  const usadas = event?.cortesias?.quantidadeUsada ?? 0;
+  const disponiveis = total - usadas;
 
   async function onSubmit(values: CourtesyFormValues) {
     setErro(null);
@@ -55,7 +60,6 @@ export default function AdminCourtesy() {
     try {
       await courtesyService.liberarCortesia({
         eventoId: event!.id,
-        lotId: values.lotId,
         quantidade: Number(values.quantidade),
         comprador: {
           nome: values.nome,
@@ -67,7 +71,8 @@ export default function AdminCourtesy() {
         motivo: values.motivo || undefined,
       });
       setSucesso(true);
-      reset({ quantidade: 1, lotId: values.lotId });
+      reset({ quantidade: 1 });
+      await carregar(); // atualiza a contagem de disponíveis na tela
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível liberar a cortesia.');
     } finally {
@@ -85,15 +90,29 @@ export default function AdminCourtesy() {
         </div>
         <div>
           <h1 className="font-display text-2xl font-bold text-white">Cortesias</h1>
-          <p className="text-sm text-white/50">Libera ingresso(s) sem cobrar nada — gera QR Code normalmente e aparece no painel da pessoa.</p>
+          <p className="text-sm text-white/50">
+            Libera ingresso(s) sem cobrar nada — usa uma reserva própria, separada dos lotes de venda, e não aparece pro público.
+          </p>
         </div>
       </div>
 
-      {!event?.lotes.length ? (
-        <div className="mt-6 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center text-sm text-white/40">
-          Cadastre pelo menos um lote em <span className="text-white/70">Editar festa</span> antes de liberar cortesias — o ingresso precisa estar vinculado a um lote.
+      {event && (
+        <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-sm text-white/70">
+          <Gift size={14} className="text-violet-400" />
+          {total === 0
+            ? 'Nenhuma reserva de cortesias configurada ainda'
+            : `${disponiveis} de ${total} cortesias disponíveis`}
         </div>
-      ) : (
+      )}
+
+      {event && total === 0 && (
+        <div className="mt-6 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center text-sm text-white/40">
+          Antes de liberar cortesias, defina quantas você quer reservar no total em{' '}
+          <span className="text-white/70">Editar festa → Cortesias</span>.
+        </div>
+      )}
+
+      {event && total > 0 && (
         <form onSubmit={handleSubmit(onSubmit)} className="mt-6 max-w-xl space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <F label="Nome completo" className="sm:col-span-2" error={errors.nome?.message}>
@@ -134,16 +153,14 @@ export default function AdminCourtesy() {
               />
             </F>
 
-            <F label="Lote">
-              <select {...register('lotId', { required: true })} className="input">
-                {event.lotes.map((l) => (
-                  <option key={l.id} value={l.id}>{l.nome}</option>
-                ))}
-              </select>
-            </F>
-
-            <F label="Quantidade de ingressos">
-              <input type="number" min={1} max={20} {...register('quantidade', { required: true, valueAsNumber: true, min: 1 })} className="input" />
+            <F label={`Quantidade de ingressos (máx. ${disponiveis})`}>
+              <input
+                type="number"
+                min={1}
+                max={disponiveis}
+                {...register('quantidade', { required: true, valueAsNumber: true, min: 1, max: disponiveis })}
+                className="input"
+              />
             </F>
 
             <F label="Motivo (opcional, só pra sua organização)" className="sm:col-span-2">
@@ -160,11 +177,11 @@ export default function AdminCourtesy() {
 
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || disponiveis <= 0}
             className="flex items-center gap-2 rounded-full bg-cta-gradient px-6 py-3 text-sm font-semibold text-white shadow-neon disabled:opacity-70"
           >
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Gift size={15} />}
-            {saving ? 'Liberando...' : 'Liberar cortesia'}
+            {saving ? 'Liberando...' : disponiveis <= 0 ? 'Reserva esgotada' : 'Liberar cortesia'}
           </button>
         </form>
       )}

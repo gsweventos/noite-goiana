@@ -64,6 +64,7 @@ export interface EventItem {
   dataFim: string; // ISO
   capacidade: number;
   lotes: TicketLot[];
+  cortesias?: { quantidadeTotal: number; quantidadeUsada: number }; // reserva separada dos lotes — não desconta neles nem aparece pro público
   regulamento: string;
   avisoImportante?: string; // destacado visualmente na página do evento (ex: conferência de documento na entrada)
   status: EventStatus;

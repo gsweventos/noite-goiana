@@ -33,7 +33,13 @@ export default function AdminDashboard() {
     { label: 'Data da festa', value: formatDateTime(event.dataInicio), icon: Calendar },
     { label: 'Ingressos vendidos', value: ingressosVendidos.toLocaleString('pt-BR'), icon: Ticket },
     { label: 'Receita total', value: formatCurrency(receitaTotal), icon: DollarSign },
-    { label: 'Cortesias liberadas', value: totalCortesias.toLocaleString('pt-BR'), icon: Gift },
+    {
+      label: 'Cortesias liberadas',
+      value: event.cortesias?.quantidadeTotal
+        ? `${totalCortesias} de ${event.cortesias.quantidadeTotal}`
+        : totalCortesias.toLocaleString('pt-BR'),
+      icon: Gift,
+    },
   ];
 
   return (

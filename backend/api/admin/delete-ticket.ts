@@ -38,14 +38,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const eventSnap = await eventRef.get();
     if (eventSnap.exists) {
       const evento = eventSnap.data()!;
-      const lotes = evento.lotes as any[];
-      const loteIndex = lotes.findIndex((l) => l.id === ticket.lotId);
-      if (loteIndex !== -1) {
-        lotes[loteIndex] = {
-          ...lotes[loteIndex],
-          quantidadeVendida: Math.max(0, lotes[loteIndex].quantidadeVendida - 1),
-        };
-        batch.update(eventRef, { lotes });
+      if (ticket.origem === 'manual') {
+        const cortesias = evento.cortesias ?? { quantidadeTotal: 0, quantidadeUsada: 0 };
+        batch.update(eventRef, {
+          cortesias: { ...cortesias, quantidadeUsada: Math.max(0, cortesias.quantidadeUsada - 1) },
+        });
+      } else {
+        const lotes = evento.lotes as any[];
+        const loteIndex = lotes.findIndex((l) => l.id === ticket.lotId);
+        if (loteIndex !== -1) {
+          lotes[loteIndex] = {
+            ...lotes[loteIndex],
+            quantidadeVendida: Math.max(0, lotes[loteIndex].quantidadeVendida - 1),
+          };
+          batch.update(eventRef, { lotes });
+        }
       }
     }
 

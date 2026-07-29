@@ -38,21 +38,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ticketsSnap.docs.forEach((doc) => batch.delete(doc.ref));
     batch.delete(paymentRef);
 
-    // Se o pagamento estava aprovado, os ingressos de fato "ocuparam vaga" no
-    // lote — devolve essa quantidade agora que eles deixam de existir.
+    // Se o pagamento estava aprovado, os ingressos de fato "ocuparam vaga"
+    // (num lote, se foi compra normal, ou na reserva de cortesias, se foi
+    // liberado manualmente) — devolve essa quantidade agora que eles deixam
+    // de existir.
     if (payment.status === 'aprovado' && ticketsSnap.size > 0) {
       const eventRef = db.collection('events').doc(payment.eventoId);
       const eventSnap = await eventRef.get();
       if (eventSnap.exists) {
         const evento = eventSnap.data()!;
-        const lotes = evento.lotes as any[];
-        const loteIndex = lotes.findIndex((l) => l.id === payment.lotId);
-        if (loteIndex !== -1) {
-          lotes[loteIndex] = {
-            ...lotes[loteIndex],
-            quantidadeVendida: Math.max(0, lotes[loteIndex].quantidadeVendida - ticketsSnap.size),
-          };
-          batch.update(eventRef, { lotes });
+        if (payment.origem === 'manual') {
+          const cortesias = evento.cortesias ?? { quantidadeTotal: 0, quantidadeUsada: 0 };
+          batch.update(eventRef, {
+            cortesias: { ...cortesias, quantidadeUsada: Math.max(0, cortesias.quantidadeUsada - ticketsSnap.size) },
+          });
+        } else {
+          const lotes = evento.lotes as any[];
+          const loteIndex = lotes.findIndex((l) => l.id === payment.lotId);
+          if (loteIndex !== -1) {
+            lotes[loteIndex] = {
+              ...lotes[loteIndex],
+              quantidadeVendida: Math.max(0, lotes[loteIndex].quantidadeVendida - ticketsSnap.size),
+            };
+            batch.update(eventRef, { lotes });
+          }
         }
       }
     }

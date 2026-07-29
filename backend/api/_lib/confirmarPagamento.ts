@@ -8,15 +8,48 @@ import { sendTicketEmail } from './email';
 type NovoStatus = 'aprovado' | 'rejeitado' | 'em_analise';
 
 /**
- * Núcleo da confirmação: dado um pagamento (por referência do Firestore) e o
- * status que deve assumir, atualiza o registro e — se for "aprovado" — gera
- * os ingressos dentro de uma transação (evitando overselling), envia o(s)
- * e-mail(s) e retorna.
+ * Fora de qualquer transação: gera o(s) PDF(s) dos ingressos de um pagamento
+ * aprovado e envia por e-mail (não bloqueia a confirmação em si). Marca
+ * `emailEnviado` pra nunca mandar duas vezes, mesmo se o status for
+ * reconsultado várias vezes depois.
+ */
+async function enviarEmailDosIngressos(paymentRef: FirebaseFirestore.DocumentReference): Promise<void> {
+  const paySnap = await paymentRef.get();
+  const payment = paySnap.data();
+  if (!(payment?.status === 'aprovado' && payment.ticketIds?.length && !payment.emailEnviado)) return;
+
+  const eventSnap = await db.collection('events').doc(payment.eventoId).get();
+  const evento = eventSnap.data()!;
+  for (const ticketId of payment.ticketIds as string[]) {
+    const ticketSnap = await db.collection('tickets').doc(ticketId).get();
+    const ticket = ticketSnap.data()!;
+    const pdf = await buildTicketPdf({
+      eventoNome: evento.nome,
+      local: `${evento.local.local}, ${evento.local.cidade} - ${evento.local.estado}`,
+      dataFormatada: new Date(evento.dataInicio).toLocaleString('pt-BR'),
+      compradorNome: ticket.compradorNome,
+      codigo: ticket.codigo,
+      qrPayload: ticket.qrPayload,
+    });
+    await sendTicketEmail({
+      to: ticket.compradorEmail,
+      nomeComprador: ticket.compradorNome,
+      eventoNome: evento.nome,
+      pdfBuffer: pdf,
+    });
+  }
+  await paymentRef.update({ emailEnviado: true });
+}
+
+/**
+ * Núcleo da confirmação de PAGAMENTOS DE VERDADE (Pix/cartão via Mercado
+ * Pago): dado um pagamento e o status que deve assumir, atualiza o registro
+ * e — se for "aprovado" — debita o LOTE de venda e gera os ingressos dentro
+ * de uma transação (evitando overselling), depois envia o(s) e-mail(s).
  *
- * É idempotente: chamar de novo para um pagamento já aprovado não duplica
- * nada. Usado por três entradas diferentes:
- *   1. confirmarPagamentoPorMpId — webhook/polling de pagamentos reais
- *   2. liberarCortesia — ingressos liberados manualmente pelo admin, sem pagamento
+ * É idempotente: chamar de novo para um pagamento já aprovado não repete
+ * nada. Cortesias NÃO passam por aqui — ver liberarCortesia mais abaixo,
+ * que usa uma reserva própria, separada dos lotes de venda.
  */
 async function processarStatusDoPagamento(
   paymentRef: FirebaseFirestore.DocumentReference,
@@ -80,7 +113,7 @@ async function processarStatusDoPagamento(
         status: 'valido',
         criadoEm: admin.firestore.FieldValue.serverTimestamp(),
         paymentId: paymentRef.id,
-        origem: payment.origem ?? 'checkout',
+        origem: 'checkout',
       });
       ticketIds.push(ticketId);
     }
@@ -88,33 +121,7 @@ async function processarStatusDoPagamento(
     tx.update(paymentRef, { ticketIds });
   });
 
-  // Fora da transação: gera o(s) PDF(s) e envia por e-mail (não bloqueia a confirmação).
-  const finalPaySnap = await paymentRef.get();
-  const payment = finalPaySnap.data();
-  if (payment?.status === 'aprovado' && payment.ticketIds?.length && !payment.emailEnviado) {
-    const eventSnap = await db.collection('events').doc(payment.eventoId).get();
-    const evento = eventSnap.data()!;
-    for (const ticketId of payment.ticketIds as string[]) {
-      const ticketSnap = await db.collection('tickets').doc(ticketId).get();
-      const ticket = ticketSnap.data()!;
-      const pdf = await buildTicketPdf({
-        eventoNome: evento.nome,
-        local: `${evento.local.local}, ${evento.local.cidade} - ${evento.local.estado}`,
-        dataFormatada: new Date(evento.dataInicio).toLocaleString('pt-BR'),
-        compradorNome: ticket.compradorNome,
-        codigo: ticket.codigo,
-        qrPayload: ticket.qrPayload,
-      });
-      await sendTicketEmail({
-        to: ticket.compradorEmail,
-        nomeComprador: ticket.compradorNome,
-        eventoNome: evento.nome,
-        pdfBuffer: pdf,
-      });
-    }
-    // Evita reenviar o e-mail se o status for reconsultado de novo depois.
-    await paymentRef.update({ emailEnviado: true });
-  }
+  await enviarEmailDosIngressos(paymentRef);
 }
 
 /**
@@ -145,7 +152,6 @@ export async function confirmarPagamentoPorMpId(mpPaymentId: string | number): P
 
 interface LiberarCortesiaParams {
   eventoId: string;
-  lotId: string;
   quantidade: number;
   comprador: {
     nome: string;
@@ -159,33 +165,86 @@ interface LiberarCortesiaParams {
 }
 
 /**
- * Libera ingresso(s) SEM pagamento — usado pelo admin para dar cortesias.
- * Cria um registro de pagamento já como "aprovado", com origem "manual", e
- * reaproveita a mesma lógica de geração de ingresso (QR Code, débito do
- * lote, envio de e-mail) usada nas compras normais — na prática, o ingresso
- * liberado assim é idêntico a um pago, tanto pro comprador (aparece no
- * painel dele normalmente) quanto pro check-in.
+ * Libera ingresso(s) de CORTESIA — sem pagamento e sem descontar de nenhum
+ * lote de venda. Usa uma reserva própria (`event.cortesias`), separada dos
+ * lotes públicos: não afasta vaga de quem está comprando, e não aparece
+ * pro público em nenhum momento (não faz parte de `event.lotes`, que é o
+ * único array que o site público lê).
+ *
+ * O ingresso gerado é idêntico a um pago: tem QR Code, aparece no painel do
+ * destinatário, passa no check-in — só o `origem: 'manual'` no banco marca
+ * que essa não foi uma venda de verdade (usado pra excluir da receita).
  */
 export async function liberarCortesia(params: LiberarCortesiaParams): Promise<string> {
   const paymentRef = db.collection('payments').doc();
-  await paymentRef.set({
-    eventoId: params.eventoId,
-    lotId: params.lotId,
-    quantidade: params.quantidade,
-    compradorNome: params.comprador.nome,
-    compradorCpf: params.comprador.cpf,
-    compradorEmail: params.comprador.email,
-    compradorTelefone: params.comprador.telefone,
-    compradorDataNascimento: params.comprador.dataNascimento ?? null,
-    valorTotal: 0,
-    status: 'pendente',
-    origem: 'manual',
-    motivo: params.motivo ?? null,
-    liberadoPor: params.liberadoPor,
-    criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-    atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+  const eventRef = db.collection('events').doc(params.eventoId);
+
+  await db.runTransaction(async (tx) => {
+    // --- Fase 1: leitura ---
+    const eventSnap = await tx.get(eventRef);
+    if (!eventSnap.exists) throw new Error('Evento não encontrado.');
+    const evento = eventSnap.data()!;
+    const cortesias = evento.cortesias ?? { quantidadeTotal: 0, quantidadeUsada: 0 };
+    const disponiveis = cortesias.quantidadeTotal - cortesias.quantidadeUsada;
+    if (disponiveis < params.quantidade) {
+      throw new Error(
+        disponiveis <= 0
+          ? 'Não há cortesias disponíveis. Aumente o total em "Editar festa" → Cortesias.'
+          : `Só restam ${disponiveis} cortesia(s) disponível(is) na reserva.`
+      );
+    }
+
+    // --- Fase 2: escritas ---
+    tx.set(paymentRef, {
+      eventoId: params.eventoId,
+      lotId: 'cortesia',
+      quantidade: params.quantidade,
+      compradorNome: params.comprador.nome,
+      compradorCpf: params.comprador.cpf,
+      compradorEmail: params.comprador.email,
+      compradorTelefone: params.comprador.telefone,
+      compradorDataNascimento: params.comprador.dataNascimento ?? null,
+      valorTotal: 0,
+      status: 'aprovado',
+      origem: 'manual',
+      motivo: params.motivo ?? null,
+      liberadoPor: params.liberadoPor,
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    tx.update(eventRef, {
+      cortesias: { quantidadeTotal: cortesias.quantidadeTotal, quantidadeUsada: cortesias.quantidadeUsada + params.quantidade },
+    });
+
+    const ticketIds: string[] = [];
+    for (let i = 0; i < params.quantidade; i++) {
+      const ticketId = uuidv4();
+      const qrPayload = signTicketPayload(ticketId, params.eventoId);
+      tx.set(db.collection('tickets').doc(ticketId), {
+        codigo: `NG-${ticketId.slice(0, 6).toUpperCase()}`,
+        qrPayload,
+        eventoId: params.eventoId,
+        eventoNome: evento.nome,
+        lotId: 'cortesia',
+        lotNome: 'Cortesia',
+        compradorNome: params.comprador.nome,
+        compradorCpf: params.comprador.cpf,
+        compradorEmail: params.comprador.email,
+        compradorTelefone: params.comprador.telefone,
+        compradorDataNascimento: params.comprador.dataNascimento ?? null,
+        numero: i + 1,
+        status: 'valido',
+        criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+        paymentId: paymentRef.id,
+        origem: 'manual',
+      });
+      ticketIds.push(ticketId);
+    }
+
+    tx.update(paymentRef, { ticketIds });
   });
 
-  await processarStatusDoPagamento(paymentRef, 'aprovado');
+  await enviarEmailDosIngressos(paymentRef);
   return paymentRef.id;
 }
