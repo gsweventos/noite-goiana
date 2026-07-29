@@ -189,8 +189,10 @@ export default function AdminEvent() {
             <div>
               <h2 className="font-display text-sm font-bold text-white">Lotes de ingresso</h2>
               <p className="mt-1 text-xs text-white/40">
-                Sem nenhum lote aqui, o site mostra "Lotes em breve" para os visitantes. Pra ter preço diferente
-                pra homem e mulher no mesmo lote: cadastra dois lotes com o <strong>mesmo texto em "Grupo"</strong> (ex: "1º Lote" nos dois) e define o "Gênero" de cada um — o site mostra os dois juntos, lado a lado.
+                Os lotes ficam disponíveis <strong>na ordem em que aparecem aqui embaixo</strong>: assim que todos os ingressos
+                de um lote (ou par feminino/masculino do mesmo "Grupo") esgotam, o próximo da lista libera sozinho no site —
+                não precisa mexer em nada. O checkbox "Ativo" é só pra pausar manualmente um lote específico, se precisar.
+                Pra ter preço diferente pra homem e mulher no mesmo lote: cadastra dois lotes com o <strong>mesmo texto em "Grupo"</strong> (ex: "1º Lote" nos dois) e define o "Gênero" de cada um.
               </p>
             </div>
             <button

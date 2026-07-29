@@ -14,35 +14,52 @@ import { formatCurrency, formatDateTime, lotProgress } from '@/utils/format';
  * masculina do "1º Lote") pra exibir lado a lado num único card. Lotes sem
  * grupo (ou com um grupo usado por só um lote) continuam aparecendo sozinhos,
  * do jeito de sempre.
+ *
+ * Também calcula, na mesma passada, qual "rodada" de lotes está liberada
+ * pra venda AGORA: a ordem em que os lotes foram cadastrados define a
+ * sequência (1º Lote, 2º Lote, ...); assim que todos os lotes de uma rodada
+ * esgotam, a próxima rodada libera sozinha — sem precisar mexer em nada no
+ * admin.
  */
-type GrupoDeLotes = { chave: string; titulo: string | null; lotes: TicketLot[] };
+type GrupoDeLotes = { chave: string; titulo: string | null; lotes: TicketLot[]; esgotado: boolean; disponivel: boolean };
 
 function agruparLotes(lotes: TicketLot[]): GrupoDeLotes[] {
   const porGrupo = new Map<string, TicketLot[]>();
   const semGrupo: TicketLot[] = [];
+  const ordemGrupo = new Map<string, number>(); // pra manter a ordem de primeira aparição
 
-  for (const lote of lotes) {
+  lotes.forEach((lote, index) => {
     if (lote.grupo) {
+      if (!porGrupo.has(lote.grupo)) ordemGrupo.set(lote.grupo, index);
       const lista = porGrupo.get(lote.grupo) ?? [];
       lista.push(lote);
       porGrupo.set(lote.grupo, lista);
     } else {
       semGrupo.push(lote);
+      ordemGrupo.set(lote.id, index);
     }
-  }
+  });
 
-  const grupos: GrupoDeLotes[] = [];
+  const brutos: { chave: string; titulo: string | null; lotes: TicketLot[]; ordem: number }[] = [];
   for (const [grupo, lotesDoGrupo] of porGrupo) {
     if (lotesDoGrupo.length > 1) {
-      grupos.push({ chave: grupo, titulo: grupo, lotes: lotesDoGrupo });
+      brutos.push({ chave: grupo, titulo: grupo, lotes: lotesDoGrupo, ordem: ordemGrupo.get(grupo)! });
     } else {
       semGrupo.push(...lotesDoGrupo);
     }
   }
   for (const lote of semGrupo) {
-    grupos.push({ chave: lote.id, titulo: null, lotes: [lote] });
+    brutos.push({ chave: lote.id, titulo: null, lotes: [lote], ordem: ordemGrupo.get(lote.id)! });
   }
-  return grupos;
+  brutos.sort((a, b) => a.ordem - b.ordem);
+
+  let rodadaLiberada = true; // a primeira rodada não esgotada encontrada, na ordem, é a atual
+  return brutos.map(({ chave, titulo, lotes: lotesDoGrupo }) => {
+    const esgotado = lotesDoGrupo.every((l) => l.quantidadeVendida >= l.quantidadeTotal);
+    const disponivel = !esgotado && rodadaLiberada;
+    if (disponivel) rodadaLiberada = false; // achou a rodada atual — as próximas ficam "em breve"
+    return { chave, titulo, lotes: lotesDoGrupo, esgotado, disponivel };
+  });
 }
 
 const GENERO_LABEL: Record<'feminino' | 'masculino', string> = {
@@ -58,8 +75,10 @@ export default function Home() {
   useEffect(() => {
     eventsService.getMainEvent().then((data) => {
       setEvent(data);
-      const ativo = data.lotes.find((l) => l.ativo && l.quantidadeVendida < l.quantidadeTotal);
-      setSelectedLot(ativo ?? data.lotes[0] ?? null);
+      const grupos = agruparLotes(data.lotes);
+      const rodadaAtual = grupos.find((g) => g.disponivel);
+      const primeiraOpcao = rodadaAtual?.lotes.find((l) => l.ativo !== false && l.quantidadeVendida < l.quantidadeTotal);
+      setSelectedLot(primeiraOpcao ?? null);
     });
   }, []);
 
@@ -211,17 +230,18 @@ export default function Home() {
                   // card só, com as opções lado a lado.
                   if (grupo.titulo) {
                     return (
-                      <div key={grupo.chave} className="rounded-xl border border-white/10 p-4">
+                      <div key={grupo.chave} className={`rounded-xl border p-4 ${grupo.disponivel ? 'border-white/10' : 'border-white/5 opacity-60'}`}>
                         <span className="text-sm font-semibold text-white">{grupo.titulo}</span>
                         <div className="mt-3 grid grid-cols-2 gap-2">
                           {grupo.lotes.map((lot) => {
                             const lotEsgotado = lot.quantidadeVendida >= lot.quantidadeTotal;
+                            const liberado = grupo.disponivel && lot.ativo !== false && !lotEsgotado;
                             const selecionado = selectedLot?.id === lot.id;
                             const label = lot.genero ? GENERO_LABEL[lot.genero] : lot.nome;
                             return (
                               <button
                                 key={lot.id}
-                                disabled={lotEsgotado || !lot.ativo}
+                                disabled={!liberado}
                                 onClick={() => setSelectedLot(lot)}
                                 className={`rounded-lg border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                                   selecionado ? 'border-violet-500 bg-violet-600/10' : 'border-white/10 hover:border-white/20'
@@ -234,7 +254,7 @@ export default function Home() {
                                 </span>
                                 <span className="mt-1 block font-display text-base font-bold text-white">{formatCurrency(lot.preco)}</span>
                                 <span className="mt-1 block text-[11px] text-white/40">
-                                  {lotEsgotado ? 'Esgotado' : !lot.ativo ? 'Em breve' : `${lot.quantidadeTotal - lot.quantidadeVendida} restantes`}
+                                  {lotEsgotado ? 'Esgotado' : !liberado ? 'Em breve' : `${lot.quantidadeTotal - lot.quantidadeVendida} restantes`}
                                 </span>
                               </button>
                             );
@@ -247,12 +267,13 @@ export default function Home() {
                   // Lote individual (sem par de gênero) — mesmo visual de sempre.
                   const lot = grupo.lotes[0];
                   const lotEsgotado = lot.quantidadeVendida >= lot.quantidadeTotal;
+                  const liberado = grupo.disponivel && lot.ativo !== false && !lotEsgotado;
                   const progresso = lotProgress(lot.quantidadeVendida, lot.quantidadeTotal);
                   const selecionado = selectedLot?.id === lot.id;
                   return (
                     <button
                       key={lot.id}
-                      disabled={lotEsgotado || !lot.ativo}
+                      disabled={!liberado}
                       onClick={() => setSelectedLot(lot)}
                       className={`w-full rounded-xl border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                         selecionado ? 'border-violet-500 bg-violet-600/10' : 'border-white/10 hover:border-white/20'
@@ -275,7 +296,7 @@ export default function Home() {
                         <div className="h-full rounded-full bg-cta-gradient" style={{ width: `${progresso}%` }} />
                       </div>
                       <span className="mt-1 block text-[11px] text-white/40">
-                        {lotEsgotado ? 'Esgotado' : !lot.ativo ? 'Em breve' : `${lot.quantidadeTotal - lot.quantidadeVendida} restantes`}
+                        {lotEsgotado ? 'Esgotado' : !liberado ? 'Em breve' : `${lot.quantidadeTotal - lot.quantidadeVendida} restantes`}
                       </span>
                     </button>
                   );
