@@ -85,12 +85,22 @@ export default function Home() {
   // As URLs de retorno do checkout sempre apontam para a raiz do site
   // (nosso HashRouter usa "#" nas rotas internas, e isso evita depender de
   // cada provedor de pagamento aceitar "#" nas back_urls). O Mercado Pago
-  // adiciona parâmetros como "collection_status"/"status" na volta, mas
-  // qualquer acesso à raiz com algum parâmetro na URL já é tratado aqui
-  // como um retorno do checkout, e a pessoa é levada direto pro painel — a
-  // confirmação real do pagamento sempre acontece via webhook, não aqui.
+  // adiciona parâmetros específicos na volta (collection_status, payment_id,
+  // preference_id, etc.) — só esses disparam o redirecionamento pro painel.
+  //
+  // Importante: NÃO usar "qualquer parâmetro na URL" pra essa detecção.
+  // Redes sociais (Instagram, Facebook, ...) adicionam parâmetros de
+  // rastreio automaticamente quando alguém compartilha o link (ex:
+  // "?igshid=..."), e isso disparava esse redirecionamento indevidamente
+  // pra qualquer visitante vindo de lá — jogando a pessoa direto numa
+  // página que exige login, o que travava o site em "carregando" pra
+  // sempre dentro do navegador interno do Instagram (que restringe alguns
+  // recursos que o Firebase Auth usa pra confirmar a sessão).
   useEffect(() => {
-    if (window.location.search.length > 1) {
+    const params = new URLSearchParams(window.location.search);
+    const voltouDoMercadoPago =
+      params.has('collection_status') || params.has('payment_id') || params.has('preference_id');
+    if (voltouDoMercadoPago) {
       navigate('/painel', { replace: true });
     }
   }, [navigate]);

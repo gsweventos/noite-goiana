@@ -50,11 +50,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     let unsubscribe = () => {};
+    // Proteção extra: em navegadores restritos (o "navegador interno" de
+    // apps como Instagram, Facebook, TikTok costuma bloquear/limitar o
+    // armazenamento que o Firebase usa pra confirmar sessão), o Firebase
+    // pode nunca chamar de volta. Sem isso, a pessoa ficaria vendo a tela
+    // de carregando pra sempre em qualquer página que exige login. Depois
+    // de 8s sem resposta, assume "não logado" e libera a navegação — se a
+    // sessão existir de verdade, o Firebase ainda pode confirmar depois e
+    // atualizar normalmente.
+    const timeoutId = setTimeout(() => setLoading(false), 8000);
+
     (async () => {
       const { onAuthStateChanged } = await import('firebase/auth');
       const { doc, getDoc } = await import('firebase/firestore');
       const { db } = await import('@/lib/firebase');
       unsubscribe = onAuthStateChanged(auth!, async (fbUser) => {
+        clearTimeout(timeoutId);
         if (!fbUser) {
           setUser(null);
           setLoading(false);
@@ -80,7 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       });
     })();
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   async function loginWithEmail(email: string, senha: string) {
