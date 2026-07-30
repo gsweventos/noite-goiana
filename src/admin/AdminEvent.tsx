@@ -21,6 +21,7 @@ interface EventFormValues {
   regulamento: string;
   avisoImportante: string;
   cortesiasTotal: number;
+  ocultarPrecosFuturos: boolean;
   lotes: TicketLot[];
 }
 
@@ -50,6 +51,7 @@ export default function AdminEvent() {
       regulamento: '',
       avisoImportante: '',
       cortesiasTotal: 0,
+      ocultarPrecosFuturos: false,
       lotes: [],
     },
   });
@@ -74,6 +76,7 @@ export default function AdminEvent() {
         regulamento: found.regulamento,
         avisoImportante: found.avisoImportante ?? '',
         cortesiasTotal: found.cortesias?.quantidadeTotal ?? 0,
+        ocultarPrecosFuturos: found.ocultarPrecosFuturos ?? false,
         lotes: found.lotes,
       });
       setLotesSalvos(found.lotes.map((l) => l.id));
@@ -144,6 +147,7 @@ export default function AdminEvent() {
       })),
       regulamento: values.regulamento,
       avisoImportante: values.avisoImportante || undefined,
+      ocultarPrecosFuturos: values.ocultarPrecosFuturos,
       cortesias: {
         quantidadeTotal: values.cortesiasTotal || 0,
         quantidadeUsada: atual.cortesias?.quantidadeUsada ?? 0,
@@ -212,6 +216,17 @@ export default function AdminEvent() {
               <Plus size={13} /> Adicionar lote
             </button>
           </div>
+
+          <label className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3.5">
+            <input type="checkbox" {...register('ocultarPrecosFuturos')} className="h-4 w-4 shrink-0 rounded border-white/20 bg-ink-900 accent-violet-600" />
+            <span>
+              <span className="block text-sm font-medium text-white">Esconder o preço dos próximos lotes</span>
+              <span className="mt-0.5 block text-xs text-white/40">
+                Enquanto um lote ainda não estiver na vez, o site mostra só "Em breve", sem revelar o valor — em vez de mostrar
+                o preço de cara. O lote atual (o que está à venda agora) sempre mostra o preço normalmente.
+              </span>
+            </span>
+          </label>
 
           <div className="mt-4 space-y-4">
             {fields.map((field, index) => (

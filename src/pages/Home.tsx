@@ -231,6 +231,7 @@ export default function Home() {
                 {gruposDeLotes.map((grupo) => {
                   // Grupo com mais de um lote (ex: feminino + masculino) — um
                   // card só, com as opções lado a lado.
+                  const escondePreco = Boolean(event.ocultarPrecosFuturos) && !grupo.disponivel && !grupo.esgotado;
                   if (grupo.titulo) {
                     return (
                       <div key={grupo.chave} className={`rounded-xl border p-4 ${grupo.disponivel ? 'border-white/10' : 'border-white/5 opacity-60'}`}>
@@ -255,7 +256,11 @@ export default function Home() {
                                 }`}>
                                   {label}
                                 </span>
-                                <span className="mt-1 block font-display text-base font-bold text-white">{formatCurrency(precoComTaxa(lot.preco))}</span>
+                                {escondePreco ? (
+                                  <span className="mt-1 block font-display text-sm font-bold text-white/30">Em breve</span>
+                                ) : (
+                                  <span className="mt-1 block font-display text-base font-bold text-white">{formatCurrency(precoComTaxa(lot.preco))}</span>
+                                )}
                                 <span className="mt-1 block text-[11px] text-white/40">
                                   {lotEsgotado ? 'Esgotado' : !liberado ? 'Em breve' : `${lot.quantidadeTotal - lot.quantidadeVendida} restantes`}
                                 </span>
@@ -293,7 +298,11 @@ export default function Home() {
                             </span>
                           )}
                         </span>
-                        <span className="font-display text-base font-bold text-white">{formatCurrency(precoComTaxa(lot.preco))}</span>
+                        {escondePreco ? (
+                          <span className="font-display text-sm font-bold text-white/30">Em breve</span>
+                        ) : (
+                          <span className="font-display text-base font-bold text-white">{formatCurrency(precoComTaxa(lot.preco))}</span>
+                        )}
                       </div>
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
                         <div className="h-full rounded-full bg-cta-gradient" style={{ width: `${progresso}%` }} />
