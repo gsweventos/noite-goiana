@@ -60,6 +60,14 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
+          {user && (
+            <Link
+              to="/painel"
+              className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-600/10 px-4 py-2 text-sm font-medium text-violet-200 transition-colors hover:border-violet-500/60 hover:bg-violet-600/20"
+            >
+              <Ticket size={15} /> Meus ingressos
+            </Link>
+          )}
           {user ? (
             <div className="group relative">
               <button className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:border-violet-500/50">
@@ -67,9 +75,6 @@ export function Header() {
                 {user.nome.split(' ')[0]}
               </button>
               <div className="invisible absolute right-0 mt-2 w-48 rounded-xl border border-white/10 bg-ink-900 p-1.5 opacity-0 shadow-neon transition-all group-hover:visible group-hover:opacity-100">
-                <Link to="/painel" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/5">
-                  <Ticket size={15} /> Meus ingressos
-                </Link>
                 {isAdmin && (
                   <Link to="/admin" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/5">
                     <LayoutDashboard size={15} /> Painel admin
@@ -96,13 +101,24 @@ export function Header() {
           )}
         </div>
 
-        <button
-          className="rounded-lg p-2 text-white md:hidden"
-          onClick={() => setOpen((v) => !v)}
-          aria-label={open ? 'Fechar menu' : 'Abrir menu'}
-        >
-          {open ? <X /> : <Menu />}
-        </button>
+        <div className="flex items-center gap-1.5 md:hidden">
+          {user && (
+            <Link
+              to="/painel"
+              aria-label="Meus ingressos"
+              className="flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-600/10 px-3 py-2 text-xs font-medium text-violet-200"
+            >
+              <Ticket size={14} /> Ingressos
+            </Link>
+          )}
+          <button
+            className="rounded-lg p-2 text-white"
+            onClick={() => setOpen((v) => !v)}
+            aria-label={open ? 'Fechar menu' : 'Abrir menu'}
+          >
+            {open ? <X /> : <Menu />}
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>

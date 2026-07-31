@@ -133,10 +133,6 @@ export default function Login() {
             )}
           </div>
         </motion.div>
-
-        <p className="mt-6 text-center text-[11px] text-white/30">
-          Conta demo: cliente@noitegoiana.com.br / admin@noitegoiana.com.br — senha 123456
-        </p>
       </section>
     </>
   );
