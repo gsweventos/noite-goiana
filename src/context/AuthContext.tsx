@@ -135,6 +135,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const cred = await createUserWithEmailAndPassword(auth!, email, senha);
     await updateProfile(cred.user, { displayName: nome });
     await setDoc(doc(db!, 'users', cred.user.uid), { nome, email, role: 'cliente', criadoEm: new Date().toISOString() });
+
+    // O Firebase NÃO dispara onAuthStateChanged de novo só porque o nome do
+    // perfil mudou (updateProfile não conta como "mudança de sessão") — sem
+    // isso aqui, o app ficaria mostrando "Usuário" até a pessoa sair e
+    // entrar de novo, mesmo o nome já estando salvo certinho no perfil.
+    setUser({
+      id: cred.user.uid,
+      nome,
+      email,
+      role: 'cliente',
+      criadoEm: new Date().toISOString(),
+    });
   }
 
   async function resetPassword(email: string) {
