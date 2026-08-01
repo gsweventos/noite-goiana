@@ -7,7 +7,7 @@ import { Spinner } from '@/components/Spinner';
 import { Logo } from '@/components/Logo';
 import { eventsService } from '@/services/eventsService';
 import { EventItem, TicketLot } from '@/types';
-import { formatCurrency, formatDateTime, lotProgress, precoComTaxa } from '@/utils/format';
+import { formatCurrency, formatDateTime, precoComTaxa } from '@/utils/format';
 
 /**
  * Agrupa lotes que compartilham o campo `grupo` (ex: versão feminina e
@@ -66,6 +66,19 @@ const GENERO_LABEL: Record<'feminino' | 'masculino', string> = {
   feminino: 'Feminino',
   masculino: 'Masculino',
 };
+
+/**
+ * Aviso de urgência baseado no percentual REAL já vendido do lote — nunca
+ * inventado. Mostra o alerta, mas não o número exato de ingressos restantes
+ * (isso fica só visível pra você, no admin).
+ */
+function avisoDeUrgencia(lot: TicketLot): { texto: string; classe: string } | null {
+  if (lot.quantidadeTotal <= 0) return null;
+  const vendidoPercent = (lot.quantidadeVendida / lot.quantidadeTotal) * 100;
+  if (vendidoPercent >= 90) return { texto: '🔥 Últimas unidades', classe: 'bg-red-500/15 text-red-300' };
+  if (vendidoPercent >= 70) return { texto: '⚡ Quase esgotando', classe: 'bg-amber-500/15 text-amber-300' };
+  return null;
+}
 
 export default function Home() {
   const [event, setEvent] = useState<EventItem | null>(null);
@@ -271,9 +284,17 @@ export default function Home() {
                                 ) : (
                                   <span className="mt-1 block font-display text-base font-bold text-white">{formatCurrency(precoComTaxa(lot.preco))}</span>
                                 )}
-                                <span className="mt-1 block text-[11px] text-white/40">
-                                  {lotEsgotado ? 'Esgotado' : !liberado ? 'Em breve' : `${lot.quantidadeTotal - lot.quantidadeVendida} restantes`}
-                                </span>
+                                {lotEsgotado ? (
+                                  <span className="mt-1 block text-[11px] text-white/40">Esgotado</span>
+                                ) : !liberado ? (
+                                  <span className="mt-1 block text-[11px] text-white/40">Em breve</span>
+                                ) : (
+                                  avisoDeUrgencia(lot) && (
+                                    <span className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${avisoDeUrgencia(lot)!.classe}`}>
+                                      {avisoDeUrgencia(lot)!.texto}
+                                    </span>
+                                  )
+                                )}
                               </button>
                             );
                           })}
@@ -286,7 +307,7 @@ export default function Home() {
                   const lot = grupo.lotes[0];
                   const lotEsgotado = lot.quantidadeVendida >= lot.quantidadeTotal;
                   const liberado = grupo.disponivel && lot.ativo !== false && !lotEsgotado;
-                  const progresso = lotProgress(lot.quantidadeVendida, lot.quantidadeTotal);
+                  const urgencia = avisoDeUrgencia(lot);
                   const selecionado = selectedLot?.id === lot.id;
                   return (
                     <button
@@ -314,12 +335,17 @@ export default function Home() {
                           <span className="font-display text-base font-bold text-white">{formatCurrency(precoComTaxa(lot.preco))}</span>
                         )}
                       </div>
-                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-                        <div className="h-full rounded-full bg-cta-gradient" style={{ width: `${progresso}%` }} />
-                      </div>
-                      <span className="mt-1 block text-[11px] text-white/40">
-                        {lotEsgotado ? 'Esgotado' : !liberado ? 'Em breve' : `${lot.quantidadeTotal - lot.quantidadeVendida} restantes`}
-                      </span>
+                      {lotEsgotado ? (
+                        <span className="mt-2 block text-[11px] text-white/40">Esgotado</span>
+                      ) : !liberado ? (
+                        <span className="mt-2 block text-[11px] text-white/40">Em breve</span>
+                      ) : (
+                        urgencia && (
+                          <span className={`mt-2 inline-block rounded-full px-2.5 py-1 text-[11px] font-semibold ${urgencia.classe}`}>
+                            {urgencia.texto}
+                          </span>
+                        )
+                      )}
                     </button>
                   );
                 })}
