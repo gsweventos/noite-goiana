@@ -19,7 +19,17 @@ export const eventsService = {
     try {
       const { doc, getDoc } = await import('firebase/firestore');
       const snap = await getDoc(doc(db!, 'events', EVENT_ID));
-      return snap.exists() ? ({ id: snap.id, ...snap.data() } as EventItem) : MAIN_EVENT;
+      if (!snap.exists()) return MAIN_EVENT;
+      const evento = { id: snap.id, ...snap.data() } as EventItem;
+      // O campo de imagem no admin é um link (URL) que exige colar um
+      // endereço manualmente — como nunca foi preenchido, fica vazio no
+      // banco e sobrescreve a imagem padrão a cada "Salvar alterações".
+      // Aqui garantimos que sempre sobra uma imagem de reserva.
+      return {
+        ...evento,
+        imagemCapa: evento.imagemCapa || MAIN_EVENT.imagemCapa,
+        imagemBanner: evento.imagemBanner || MAIN_EVENT.imagemBanner,
+      };
     } catch (err) {
       // Se o Firestore falhar (regras ainda não publicadas, documento
       // inexistente, sem internet, etc.), o site continua funcionando com os
