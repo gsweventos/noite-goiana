@@ -1,5 +1,5 @@
 import { EventItem } from '@/types';
-import truckBg from '@/assets/noite-goiana-truck-bg.jpg';
+import truckBg from '@/assets/noite-goiana-truck-bg.webp';
 
 /**
  * A Noite Goiana não é uma plataforma com vários eventos — é o site de UMA

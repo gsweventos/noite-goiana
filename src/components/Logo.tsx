@@ -1,4 +1,4 @@
-import logoImg from '@/assets/noite-goiana-logo.png';
+import logoImg from '@/assets/noite-goiana-logo.webp';
 
 interface LogoProps {
   className?: string;
