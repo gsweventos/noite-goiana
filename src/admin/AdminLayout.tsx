@@ -1,10 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, PartyPopper, Gift, Ticket, Users, CreditCard, ScanLine } from 'lucide-react';
+import { LayoutDashboard, PartyPopper, Gift, Tag, Ticket, Users, CreditCard, ScanLine } from 'lucide-react';
 
 const LINKS = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/evento', label: 'Editar festa', icon: PartyPopper },
   { to: '/admin/cortesias', label: 'Cortesias', icon: Gift },
+  { to: '/admin/cupons', label: 'Cupons', icon: Tag },
   { to: '/admin/ingressos', label: 'Ingressos', icon: Ticket },
   { to: '/admin/clientes', label: 'Clientes', icon: Users },
   { to: '/admin/pagamentos', label: 'Pagamentos', icon: CreditCard },

@@ -75,6 +75,19 @@ export interface EventItem {
 
 export type TicketStatus = 'valido' | 'utilizado' | 'cancelado';
 
+export interface Coupon {
+  id: string; // mesmo valor do código, em maiúsculas (ex: "NOITE10")
+  codigo: string;
+  tipo: 'percentual' | 'fixo';
+  valor: number; // 10 = 10% (se percentual) ou R$10 (se fixo)
+  ativo: boolean;
+  usosMaximos?: number; // vazio = sem limite
+  usosAtuais: number;
+  validoAte?: string; // ISO — vazio = sem validade
+  lotesAplicaveis?: string[]; // vazio = aplica a todos os lotes
+  criadoEm: string;
+}
+
 export interface Ticket {
   id: string; // UUID único
   codigo: string; // código curto legível, ex: NG-8F2K9X
@@ -115,6 +128,8 @@ export interface Payment {
   status: PaymentStatus;
   origem?: 'checkout' | 'manual'; // 'manual' = liberado pelo admin sem pagamento (cortesia)
   motivo?: string; // anotação livre do admin, ex: "Cortesia - equipe de som"
+  cupomCodigo?: string;
+  descontoAplicado?: number; // em reais, quanto o cupom abateu
   criadoEm: string;
   atualizadoEm: string;
 }

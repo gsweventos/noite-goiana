@@ -4,6 +4,7 @@ import { applyCors } from '../_lib/cors';
 import { db, admin } from '../_lib/firebaseAdmin';
 import { mpPayment } from '../_lib/mercadopago';
 import { precoComTaxa } from '../_lib/pricing';
+import { validarCupom } from '../_lib/cupom';
 
 const createPixSchema = z.object({
   eventoId: z.string().min(1),
@@ -16,6 +17,8 @@ const createPixSchema = z.object({
     telefone: z.string().min(8),
     dataNascimento: z.string().min(8),
   }),
+  deviceId: z.string().optional(),
+  cupom: z.string().optional(),
 });
 
 /**
@@ -36,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!parsed.success) {
     return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.flatten() });
   }
-  const { eventoId, lotId, quantidade, comprador } = parsed.data;
+  const { eventoId, lotId, quantidade, comprador, deviceId, cupom } = parsed.data;
 
   try {
     const eventSnap = await db.collection('events').doc(eventoId).get();
@@ -51,7 +54,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(409).json({ error: 'Quantidade indisponível para este lote' });
     }
 
-    const valorTotal = precoComTaxa(lote.preco) * quantidade;
+    // Revalida o cupom do ZERO no servidor (nunca confia em desconto vindo do
+    // frontend) — se o código não existir mais/for inválido, a compra segue
+    // sem desconto em vez de travar o pagamento.
+    const resultadoCupom = cupom ? await validarCupom(cupom, lotId, lote.preco) : null;
+    const precoBaseFinal = resultadoCupom?.valido ? resultadoCupom.precoBaseComDesconto! : lote.preco;
+    const descontoUnitario = resultadoCupom?.valido ? resultadoCupom.descontoUnitario! : 0;
+
+    const valorTotal = precoComTaxa(precoBaseFinal) * quantidade;
 
     // 1. Cria o registro de pagamento como "pendente" ANTES de falar com o Mercado Pago.
     const paymentRef = db.collection('payments').doc();
@@ -66,6 +76,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       compradorDataNascimento: comprador.dataNascimento,
       valorTotal,
       status: 'pendente',
+      ...(resultadoCupom?.valido
+        ? { cupomCodigo: resultadoCupom.cupom!.codigo, descontoAplicado: descontoUnitario * quantidade }
+        : {}),
       criadoEm: admin.firestore.FieldValue.serverTimestamp(),
       atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -92,6 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
         },
       },
+      requestOptions: deviceId ? { customHeaders: { 'x-meli-session-id': deviceId } } : undefined,
     });
 
     const txData = mpPaymentResult.point_of_interaction?.transaction_data;

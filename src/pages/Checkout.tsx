@@ -10,6 +10,7 @@ import { Seo } from '@/components/Seo';
 import { Spinner } from '@/components/Spinner';
 import { eventsService } from '@/services/eventsService';
 import { paymentService, CreatePixResponse } from '@/services/paymentService';
+import { couponService, ResultadoValidacaoCupom } from '@/services/couponService';
 import { EventItem, TicketLot } from '@/types';
 import { formatCurrency, isValidCpf, isValidBirthDate, maskCpf, maskDate, maskPhone, precoComTaxa, valorDaTaxa } from '@/utils/format';
 
@@ -36,10 +37,28 @@ export default function Checkout() {
   const [erro, setErro] = useState<string | null>(null);
   const [pix, setPix] = useState<CreatePixResponse | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [codigoCupom, setCodigoCupom] = useState('');
+  const [cupomAplicado, setCupomAplicado] = useState<ResultadoValidacaoCupom | null>(null);
+  const [validandoCupom, setValidandoCupom] = useState(false);
+  const [erroCupom, setErroCupom] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     eventsService.getMainEvent().then(setEvent);
+  }, []);
+
+  // Device ID do Mercado Pago: recomendação deles pra melhorar a taxa de
+  // aprovação de pagamentos (ajuda o motor de risco a diferenciar comprador
+  // legítimo de fraude). O script deles cria a variável global
+  // MP_DEVICE_SESSION_ID sozinho — só precisamos incluir o script na página
+  // de checkout e mandar esse valor pro backend na hora de pagar.
+  useEffect(() => {
+    if (document.getElementById('mp-security-script')) return;
+    const script = document.createElement('script');
+    script.id = 'mp-security-script';
+    script.src = 'https://www.mercadopago.com/v2/security.js';
+    script.setAttribute('view', 'checkout');
+    document.body.appendChild(script);
   }, []);
 
   // Para de checar o status quando o componente desmontar (sai da página).
@@ -64,9 +83,36 @@ export default function Checkout() {
   if (!lote) return <Navigate to="/" replace />;
 
   const restantes = lote.quantidadeTotal - lote.quantidadeVendida;
-  const precoUnitario = precoComTaxa(lote.preco);
-  const taxaUnitaria = valorDaTaxa(lote.preco);
+  const precoBase = cupomAplicado?.valido ? cupomAplicado.precoBaseComDesconto! : lote.preco;
+  const precoUnitario = cupomAplicado?.valido ? cupomAplicado.precoFinalComDesconto! : precoComTaxa(lote.preco);
+  const taxaUnitaria = valorDaTaxa(precoBase);
   const total = precoUnitario * quantidade;
+  const descontoTotal = cupomAplicado?.valido ? cupomAplicado.descontoUnitario! * quantidade : 0;
+
+  async function aplicarCupom() {
+    if (!codigoCupom.trim()) return;
+    setValidandoCupom(true);
+    setErroCupom(null);
+    try {
+      const resultado = await couponService.validar(codigoCupom, event!.id, lote.id);
+      if (resultado.valido) {
+        setCupomAplicado(resultado);
+      } else {
+        setCupomAplicado(null);
+        setErroCupom(resultado.erro ?? 'Cupom inválido.');
+      }
+    } catch {
+      setErroCupom('Não foi possível validar o cupom agora.');
+    } finally {
+      setValidandoCupom(false);
+    }
+  }
+
+  function removerCupom() {
+    setCupomAplicado(null);
+    setCodigoCupom('');
+    setErroCupom(null);
+  }
 
   /** Fica checando o status do pagamento a cada 4s, até aprovar (ou a pessoa sair da página). */
   function iniciarPolling(paymentId: string) {
@@ -94,6 +140,8 @@ export default function Checkout() {
           lotId: lote!.id,
           quantidade,
           comprador: data,
+          deviceId: (window as any).MP_DEVICE_SESSION_ID,
+          cupom: cupomAplicado?.valido ? cupomAplicado.cupom!.codigo : undefined,
         });
         setPix(response);
         setStep('pix');
@@ -119,6 +167,7 @@ export default function Checkout() {
         lotId: lote!.id,
         quantidade,
         comprador: data,
+        cupom: cupomAplicado?.valido ? cupomAplicado.cupom!.codigo : undefined,
       });
 
       if (response.initPoint === '#checkout-demo') {
@@ -177,11 +226,45 @@ export default function Checkout() {
               <span className="text-xs text-white/40">máx. 6 por compra · {restantes} disponíveis</span>
             </div>
 
-            <div className="mt-6 space-y-1.5 border-t border-white/10 pt-4 text-sm">
+            <div className="mt-6 border-t border-white/10 pt-4">
+              {!cupomAplicado?.valido ? (
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      value={codigoCupom}
+                      onChange={(e) => setCodigoCupom(e.target.value.toUpperCase())}
+                      placeholder="Cupom de desconto"
+                      className="input flex-1"
+                    />
+                    <button
+                      onClick={aplicarCupom}
+                      disabled={validandoCupom || !codigoCupom.trim()}
+                      className="shrink-0 rounded-xl border border-white/15 px-4 text-sm font-medium text-white hover:border-violet-500/50 disabled:opacity-50"
+                    >
+                      {validandoCupom ? <Loader2 size={15} className="animate-spin" /> : 'Aplicar'}
+                    </button>
+                  </div>
+                  {erroCupom && <p className="mt-1.5 text-xs text-red-400">{erroCupom}</p>}
+                </>
+              ) : (
+                <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm">
+                  <span className="text-emerald-300">Cupom <strong>{cupomAplicado.cupom!.codigo}</strong> aplicado</span>
+                  <button onClick={removerCupom} className="text-xs text-white/40 hover:text-white/70">Remover</button>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 space-y-1.5 border-t border-white/10 pt-4 text-sm">
               <div className="flex items-center justify-between text-white/50">
                 <span>Ingresso ({quantidade}x)</span>
                 <span>{formatCurrency(lote.preco * quantidade)}</span>
               </div>
+              {descontoTotal > 0 && (
+                <div className="flex items-center justify-between text-emerald-400">
+                  <span>Desconto do cupom</span>
+                  <span>− {formatCurrency(descontoTotal)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between text-white/50">
                 <span>Taxa de serviço</span>
                 <span>{formatCurrency(taxaUnitaria * quantidade)}</span>

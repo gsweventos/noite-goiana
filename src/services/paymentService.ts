@@ -29,6 +29,10 @@ export interface CreatePreferencePayload {
     telefone: string;
     dataNascimento: string;
   };
+  /** Device ID do Mercado Pago (window.MP_DEVICE_SESSION_ID) — melhora a taxa de aprovação. */
+  deviceId?: string;
+  /** Código de cupom de desconto, se aplicado — revalidado do zero no backend. */
+  cupom?: string;
 }
 
 export interface CreatePreferenceResponse {

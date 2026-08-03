@@ -68,6 +68,9 @@ async function processarStatusDoPagamento(
     const eventRef = db.collection('events').doc(payment.eventoId);
     const eventSnap = novoStatus === 'aprovado' ? await tx.get(eventRef) : null;
 
+    const cupomRef = novoStatus === 'aprovado' && payment.cupomCodigo ? db.collection('coupons').doc(payment.cupomCodigo) : null;
+    const cupomSnap = cupomRef ? await tx.get(cupomRef) : null;
+
     // --- Fase 2: agora sim, as escritas ---
     tx.update(paymentRef, {
       status: novoStatus,
@@ -76,6 +79,13 @@ async function processarStatusDoPagamento(
     });
 
     if (novoStatus !== 'aprovado') return;
+
+    // Soma 1 no contador de usos do cupom (só quando o pagamento é aprovado
+    // de verdade — nunca em pagamentos pendentes/rejeitados).
+    if (cupomRef && cupomSnap?.exists) {
+      tx.update(cupomRef, { usosAtuais: (cupomSnap.data()!.usosAtuais ?? 0) + 1 });
+    }
+
     if (!eventSnap || !eventSnap.exists) return;
 
     // Pagamento aprovado: debita o lote e gera os ingressos DENTRO da

@@ -64,6 +64,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Cupons de desconto: admin consegue LISTAR/gerenciar (via o painel),
+    // mas toda escrita (criar/editar/apagar) passa pelo backend, que
+    // reconfere permissão de admin de novo antes de qualquer alteração.
+    match /coupons/{couponId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /ticketLots/{lotId} {
       allow read: if true;
       allow write: if isAdmin();

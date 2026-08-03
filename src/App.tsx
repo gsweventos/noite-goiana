@@ -26,6 +26,7 @@ const NotFound = lazy(() => import('@/pages/NotFound'));const AdminLayout = lazy
 const AdminDashboard = lazy(() => import('@/admin/AdminDashboard'));
 const AdminEvent = lazy(() => import('@/admin/AdminEvent'));
 const AdminCourtesy = lazy(() => import('@/admin/AdminCourtesy'));
+const AdminCoupons = lazy(() => import('@/admin/AdminCoupons'));
 const AdminTickets = lazy(() => import('@/admin/AdminTickets'));
 const AdminClients = lazy(() => import('@/admin/AdminClients'));
 const AdminPayments = lazy(() => import('@/admin/AdminPayments'));
@@ -65,6 +66,7 @@ export default function App() {
                 <Route index element={<AdminDashboard />} />
                 <Route path="evento" element={<AdminEvent />} />
                 <Route path="cortesias" element={<AdminCourtesy />} />
+                <Route path="cupons" element={<AdminCoupons />} />
                 <Route path="ingressos" element={<AdminTickets />} />
                 <Route path="clientes" element={<AdminClients />} />
                 <Route path="pagamentos" element={<AdminPayments />} />
