@@ -94,7 +94,7 @@ export default function Checkout() {
     setValidandoCupom(true);
     setErroCupom(null);
     try {
-      const resultado = await couponService.validar(codigoCupom, event!.id, lote.id);
+      const resultado = await couponService.validar(codigoCupom, event!.id, lote!.id);
       if (resultado.valido) {
         setCupomAplicado(resultado);
       } else {
