@@ -83,9 +83,8 @@ export default function Checkout() {
   if (!lote) return <Navigate to="/" replace />;
 
   const restantes = lote.quantidadeTotal - lote.quantidadeVendida;
-  const precoBase = cupomAplicado?.valido ? cupomAplicado.precoBaseComDesconto! : lote.preco;
   const precoUnitario = cupomAplicado?.valido ? cupomAplicado.precoFinalComDesconto! : precoComTaxa(lote.preco);
-  const taxaUnitaria = valorDaTaxa(precoBase);
+  const taxaUnitaria = valorDaTaxa(lote.preco);
   const total = precoUnitario * quantidade;
   const descontoTotal = cupomAplicado?.valido ? cupomAplicado.descontoUnitario! * quantidade : 0;
 
@@ -259,16 +258,16 @@ export default function Checkout() {
                 <span>Ingresso ({quantidade}x)</span>
                 <span>{formatCurrency(lote.preco * quantidade)}</span>
               </div>
+              <div className="flex items-center justify-between text-white/50">
+                <span>Taxa de serviço</span>
+                <span>{formatCurrency(taxaUnitaria * quantidade)}</span>
+              </div>
               {descontoTotal > 0 && (
                 <div className="flex items-center justify-between text-emerald-400">
                   <span>Desconto do cupom</span>
                   <span>− {formatCurrency(descontoTotal)}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between text-white/50">
-                <span>Taxa de serviço</span>
-                <span>{formatCurrency(taxaUnitaria * quantidade)}</span>
-              </div>
               <div className="flex items-center justify-between pt-2">
                 <span className="font-medium text-white/80">Total</span>
                 <span className="font-display text-2xl font-bold text-white">{formatCurrency(total)}</span>

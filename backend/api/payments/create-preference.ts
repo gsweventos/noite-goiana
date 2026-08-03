@@ -57,10 +57,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // frontend) — se o código não existir mais/for inválido, a compra segue
     // sem desconto em vez de travar o pagamento.
     const resultadoCupom = cupom ? await validarCupom(cupom, lotId, lote.preco) : null;
-    const precoBaseFinal = resultadoCupom?.valido ? resultadoCupom.precoBaseComDesconto! : lote.preco;
+    const precoUnitarioFinal = resultadoCupom?.valido ? resultadoCupom.precoFinalComDesconto! : precoComTaxa(lote.preco);
     const descontoUnitario = resultadoCupom?.valido ? resultadoCupom.descontoUnitario! : 0;
 
-    const valorTotal = precoComTaxa(precoBaseFinal) * quantidade;
+    const valorTotal = precoUnitarioFinal * quantidade;
 
     // 1. Cria o registro de pagamento como "pendente" ANTES de falar com o Mercado Pago.
     const paymentRef = db.collection('payments').doc();
@@ -93,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             id: lotId,
             title: `${evento.nome} — ${lote.nome}`,
             quantity: quantidade,
-            unit_price: precoComTaxa(precoBaseFinal),
+            unit_price: precoUnitarioFinal,
             currency_id: 'BRL',
           },
         ],

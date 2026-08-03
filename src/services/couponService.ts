@@ -8,7 +8,6 @@ export interface ResultadoValidacaoCupom {
   erro?: string;
   cupom?: { codigo: string; tipo: 'percentual' | 'fixo'; valor: number };
   descontoUnitario?: number;
-  precoBaseComDesconto?: number;
   precoFinalComDesconto?: number;
 }
 

@@ -5,9 +5,8 @@ export interface ResultadoCupom {
   valido: boolean;
   erro?: string;
   cupom?: { codigo: string; tipo: 'percentual' | 'fixo'; valor: number };
-  descontoUnitario?: number; // em reais, por ingresso, sobre o preço BASE (antes da taxa)
-  precoBaseComDesconto?: number; // preço base já com desconto aplicado
-  precoFinalComDesconto?: number; // preço final (com taxa de serviço) já com desconto
+  descontoUnitario?: number; // em reais, por ingresso, sobre o valor TOTAL (já com a taxa incluída)
+  precoFinalComDesconto?: number; // valor final por ingresso (total com taxa, já descontado)
 }
 
 /**
@@ -15,6 +14,10 @@ export interface ResultadoCupom {
  * de verdade, chamada tanto pelo endpoint de prévia (o que o comprador vê
  * antes de pagar) quanto na hora de criar o pagamento de verdade. Nunca
  * confiar em um valor de desconto vindo do frontend.
+ *
+ * O desconto é calculado sobre o valor TOTAL (ingresso + taxa de serviço),
+ * não só sobre o valor base — ou seja, um cupom de 10% tira 10% do que a
+ * pessoa realmente pagaria no fim, taxa incluída.
  */
 export async function validarCupom(codigoDigitado: string, lotId: string, precoBase: number): Promise<ResultadoCupom> {
   const codigo = codigoDigitado.trim().toUpperCase();
@@ -39,16 +42,19 @@ export async function validarCupom(codigoDigitado: string, lotId: string, precoB
     return { valido: false, erro: 'Este cupom não é válido para o lote escolhido.' };
   }
 
-  const descontoUnitario =
-    cupom.tipo === 'percentual' ? Math.round(precoBase * (cupom.valor / 100) * 100) / 100 : Math.min(cupom.valor, precoBase);
+  const precoTotalOriginal = precoComTaxa(precoBase); // ingresso + taxa de serviço, valor cheio
 
-  const precoBaseComDesconto = Math.max(0, Math.round((precoBase - descontoUnitario) * 100) / 100);
+  const descontoUnitario =
+    cupom.tipo === 'percentual'
+      ? Math.round(precoTotalOriginal * (cupom.valor / 100) * 100) / 100
+      : Math.min(cupom.valor, precoTotalOriginal);
+
+  const precoFinalComDesconto = Math.max(0, Math.round((precoTotalOriginal - descontoUnitario) * 100) / 100);
 
   return {
     valido: true,
     cupom: { codigo, tipo: cupom.tipo, valor: cupom.valor },
     descontoUnitario,
-    precoBaseComDesconto,
-    precoFinalComDesconto: precoComTaxa(precoBaseComDesconto),
+    precoFinalComDesconto,
   };
 }
