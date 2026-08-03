@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { applyCors } from '../_lib/cors';
 import { db, admin } from '../_lib/firebaseAdmin';
-import { mpPayment } from '../_lib/mercadopago';
+import { mpAccessToken } from '../_lib/mercadopago';
 import { precoComTaxa } from '../_lib/pricing';
 import { validarCupom } from '../_lib/cupom';
 
@@ -83,13 +83,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       atualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // 2. Cria o pagamento Pix direto na API do Mercado Pago.
+    // 2. Cria o pagamento Pix direto na API do Mercado Pago. Chamamos a API
+    // diretamente (sem o SDK) aqui porque o SDK de Node não tem um jeito
+    // tipado de mandar o header x-meli-session-id do Device ID — assim
+    // controlamos os headers manualmente, do mesmo jeito que já confirmamos
+    // funcionar direto com curl.
     const apiUrl = process.env.PUBLIC_API_URL;
     const [firstName, ...restName] = comprador.nome.trim().split(/\s+/);
     const lastName = restName.join(' ') || firstName;
 
-    const mpPaymentResult = await mpPayment.create({
-      body: {
+    const mpRes = await fetch('https://api.mercadopago.com/v1/payments', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${mpAccessToken}`,
+        'X-Idempotency-Key': paymentRef.id,
+        ...(deviceId ? { 'X-meli-session-id': deviceId } : {}),
+      },
+      body: JSON.stringify({
         transaction_amount: valorTotal,
         description: `${evento.nome} — ${lote.nome}`,
         payment_method_id: 'pix',
@@ -104,9 +115,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             number: comprador.cpf.replace(/\D/g, ''),
           },
         },
-      },
-      requestOptions: deviceId ? { customHeaders: { 'x-meli-session-id': deviceId } } : undefined,
+      }),
     });
+
+    const mpPaymentResult = await mpRes.json();
+    if (!mpRes.ok) {
+      console.error('[create-pix] Mercado Pago recusou a criação do pagamento:', mpPaymentResult);
+      throw new Error(mpPaymentResult?.message ?? 'Mercado Pago recusou a criação do pagamento.');
+    }
 
     const txData = mpPaymentResult.point_of_interaction?.transaction_data;
     if (!txData?.qr_code || !txData?.qr_code_base64) {

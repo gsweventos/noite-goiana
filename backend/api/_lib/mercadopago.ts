@@ -16,6 +16,8 @@ if (accessToken.startsWith('TEST-')) {
   console.warn('[mercadopago] ATENÇÃO: MP_ACCESS_TOKEN não está no formato esperado (deveria começar com "APP_USR-" para produção). Confira se copiou o valor certo.');
 }
 
+export const mpAccessToken = accessToken;
+
 export const mpClient = new MercadoPagoConfig({
   accessToken,
   options: { timeout: 8000 },
