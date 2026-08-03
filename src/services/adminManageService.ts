@@ -30,16 +30,16 @@ async function chamarComoAdmin(caminho: string, body: unknown) {
 export const adminManageService = {
   /** Apaga um pagamento e todos os ingressos gerados a partir dele. */
   async deletePayment(paymentId: string): Promise<void> {
-    await chamarComoAdmin('/admin/delete-payment', { paymentId });
+    await chamarComoAdmin('/admin/manutencao', { acao: 'apagar-pagamento', paymentId });
   },
 
   /** Apaga um único ingresso (sem mexer no resto da compra). */
   async deleteTicket(ticketId: string): Promise<void> {
-    await chamarComoAdmin('/admin/delete-ticket', { ticketId });
+    await chamarComoAdmin('/admin/manutencao', { acao: 'apagar-ingresso', ticketId });
   },
 
   /** Ferramenta única: corrige cortesias antigas para o modelo de reserva separada. */
   async corrigirCortesiasAntigas(): Promise<{ corrigidos: number; mensagem?: string }> {
-    return chamarComoAdmin('/admin/corrigir-cortesias-antigas', {});
+    return chamarComoAdmin('/admin/manutencao', { acao: 'corrigir-cortesias-antigas' });
   },
 };

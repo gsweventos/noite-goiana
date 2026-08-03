@@ -4,7 +4,7 @@ import { applyCors } from '../_lib/cors';
 import { verificarAdmin } from '../_lib/verificarAdmin';
 import { db, admin } from '../_lib/firebaseAdmin';
 
-const schema = z.object({
+const saveSchema = z.object({
   codigo: z.string().min(2).max(30),
   tipo: z.enum(['percentual', 'fixo']),
   valor: z.number().positive(),
@@ -14,21 +14,36 @@ const schema = z.object({
   lotesAplicaveis: z.array(z.string()).optional(),
 });
 
+const deleteSchema = z.object({ codigo: z.string().min(1) });
+
 /**
- * POST /api/admin/coupons-save
+ * POST /api/admin/coupons — cria ou edita um cupom (mesmo formato de antes)
+ * DELETE /api/admin/coupons — apaga um cupom
  *
- * Cria (ou edita, se o código já existir) um cupom de desconto. Endpoint
- * exclusivo de admin — o documento fica salvo com o próprio código (em
- * maiúsculas) como id, então salvar de novo com o mesmo código só atualiza.
+ * Os dois juntos num arquivo só (o plano gratuito do Vercel tem limite de
+ * 12 funções por deploy) — diferenciados pelo método HTTP.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (applyCors(req, res)) return;
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
   const adminUid = await verificarAdmin(req);
   if (!adminUid) return res.status(403).json({ error: 'Apenas administradores podem gerenciar cupons.' });
 
-  const parsed = schema.safeParse(req.body);
+  if (req.method === 'DELETE') {
+    const parsed = deleteSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos' });
+    try {
+      await db.collection('coupons').doc(parsed.data.codigo.trim().toUpperCase()).delete();
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error('[coupons delete] erro:', err);
+      return res.status(500).json({ error: 'Não foi possível apagar o cupom.' });
+    }
+  }
+
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+
+  const parsed = saveSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.flatten() });
 
   const { codigo, tipo, valor, ativo, usosMaximos, validoAte, lotesAplicaveis } = parsed.data;
@@ -59,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.json({ ok: true, codigo: id });
   } catch (err) {
-    console.error('[coupons-save] erro:', err);
+    console.error('[coupons save] erro:', err);
     return res.status(500).json({ error: 'Não foi possível salvar o cupom.' });
   }
 }

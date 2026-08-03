@@ -12,7 +12,7 @@ export interface ResultadoValidacaoCupom {
   precoFinalComDesconto?: number;
 }
 
-async function chamarComoAdmin(caminho: string, body: unknown) {
+async function chamarComoAdmin(caminho: string, body: unknown, method: 'POST' | 'DELETE' = 'POST') {
   if (USE_MOCK || !API_BASE_URL) {
     await new Promise((r) => setTimeout(r, 400));
     return { ok: true };
@@ -21,7 +21,7 @@ async function chamarComoAdmin(caminho: string, body: unknown) {
   if (!token) throw new Error('Sessão expirada — faça login de novo.');
 
   const res = await fetch(`${API_BASE_URL}${caminho}`, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
   });
@@ -69,10 +69,10 @@ export const couponService = {
     validoAte?: string;
     lotesAplicaveis?: string[];
   }): Promise<void> {
-    await chamarComoAdmin('/admin/coupons-save', payload);
+    await chamarComoAdmin('/admin/coupons', payload);
   },
 
   async apagar(codigo: string): Promise<void> {
-    await chamarComoAdmin('/admin/coupons-delete', { codigo });
+    await chamarComoAdmin('/admin/coupons', { codigo }, 'DELETE');
   },
 };
