@@ -17,6 +17,7 @@ const Home = lazy(() => import('@/pages/Home'));
 const Checkout = lazy(() => import('@/pages/Checkout'));
 const Login = lazy(() => import('@/pages/Login'));
 const ClientDashboard = lazy(() => import('@/pages/ClientDashboard'));
+const PhotoGallery = lazy(() => import('@/pages/PhotoGallery'));
 const Checkin = lazy(() => import('@/pages/Checkin'));
 const About = lazy(() => import('@/pages/About'));
 const Contact = lazy(() => import('@/pages/Contact'));
@@ -51,6 +52,15 @@ export default function App() {
                 element={
                   <RequireAuth>
                     <ClientDashboard />
+                  </RequireAuth>
+                }
+              />
+
+              <Route
+                path="/fotos"
+                element={
+                  <RequireAuth>
+                    <PhotoGallery />
                   </RequireAuth>
                 }
               />

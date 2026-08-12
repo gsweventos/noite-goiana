@@ -75,6 +75,15 @@ export interface EventItem {
 
 export type TicketStatus = 'valido' | 'utilizado' | 'cancelado';
 
+export interface EventPhoto {
+  id: string;
+  url: string;
+  path: string; // caminho no Storage, usado pra apagar depois
+  eventoId: string;
+  criadoEm: string;
+  criadoPor: string; // uid do admin que subiu
+}
+
 export interface Coupon {
   id: string; // mesmo valor do código, em maiúsculas (ex: "NOITE10")
   codigo: string;

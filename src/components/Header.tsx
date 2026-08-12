@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, Ticket, LogOut, LayoutDashboard } from 'lucide-react';
+import { Menu, X, User, Ticket, Camera, LogOut, LayoutDashboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Logo } from './Logo';
 import { useAuth } from '@/context/AuthContext';
@@ -75,6 +75,9 @@ export function Header() {
                 {user.nome.split(' ')[0]}
               </button>
               <div className="invisible absolute right-0 mt-2 w-48 rounded-xl border border-white/10 bg-ink-900 p-1.5 opacity-0 shadow-neon transition-all group-hover:visible group-hover:opacity-100">
+                <Link to="/fotos" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/5">
+                  <Camera size={15} /> Fotos da festa
+                </Link>
                 {isAdmin && (
                   <Link to="/admin" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/5">
                     <LayoutDashboard size={15} /> Painel admin
@@ -155,6 +158,9 @@ export function Header() {
                 <>
                   <Link to="/painel" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-sm text-white/80 hover:bg-white/5">
                     Meus ingressos
+                  </Link>
+                  <Link to="/fotos" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-sm text-white/80 hover:bg-white/5">
+                    Fotos da festa
                   </Link>
                   {isAdmin && (
                     <Link to="/admin" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-sm text-white/80 hover:bg-white/5">

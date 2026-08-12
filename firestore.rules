@@ -72,6 +72,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Fotos do evento: qualquer pessoa logada (membro) pode ver a lista;
+    // só admin escreve — e aqui SIM é direto pelo client SDK (não passa
+    // pelo backend), já que não é dado sensível como pagamento/ingresso.
+    match /photos/{photoId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     match /ticketLots/{lotId} {
       allow read: if true;
       allow write: if isAdmin();
