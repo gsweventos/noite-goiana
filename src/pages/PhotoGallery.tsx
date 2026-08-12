@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { Camera, Upload, Download, Trash2, Loader2, ImageOff } from 'lucide-react';
 import { Seo } from '@/components/Seo';
 import { Spinner } from '@/components/Spinner';
@@ -28,7 +29,7 @@ export default function PhotoGallery() {
 
   useEffect(carregar, []);
 
-  async function onFilesSelected(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFilesSelected(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
     setErro(null);

@@ -1,7 +1,7 @@
 {
-  "name": "noite-goiana-backend-mercadopago",
+  "name": "noite-goiana-backend",
   "private": true,
-  "description": "Backend alternativo da Noite Goiana usando Mercado Pago (Checkout Pro) em vez de Asaas. Rodando no Vercel: preferências de pagamento, webhook, geração de ingressos/QR Code, envio de e-mail e validação de check-in.",
+  "description": "Backend da Noite Goiana rodando no Vercel: pagamentos (Mercado Pago), cupons, cortesias, geração de ingressos/QR Code, envio de e-mail, upload de fotos (Vercel Blob) e validação de check-in.",
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod",
@@ -14,7 +14,8 @@
     "uuid": "^9.0.1",
     "zod": "^3.23.8",
     "nodemailer": "^6.9.15",
-    "pdfkit": "^0.15.0"
+    "pdfkit": "^0.15.0",
+    "@vercel/blob": "latest"
   },
   "devDependencies": {
     "@vercel/node": "^3.2.11",

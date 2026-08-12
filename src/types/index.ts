@@ -78,7 +78,7 @@ export type TicketStatus = 'valido' | 'utilizado' | 'cancelado';
 export interface EventPhoto {
   id: string;
   url: string;
-  path: string; // caminho no Storage, usado pra apagar depois
+  path: string; // URL do Vercel Blob, usada pra apagar depois (del())
   eventoId: string;
   criadoEm: string;
   criadoPor: string; // uid do admin que subiu
