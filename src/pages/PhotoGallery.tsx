@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { Camera, Upload, Download, Trash2, Loader2, ImageOff } from 'lucide-react';
+import { Camera, Upload, Download, Trash2, Loader2, ImageOff, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Seo } from '@/components/Seo';
 import { Spinner } from '@/components/Spinner';
 import { useAuth } from '@/context/AuthContext';
@@ -17,6 +17,7 @@ export default function PhotoGallery() {
   const [baixando, setBaixando] = useState<string | null>(null);
   const [apagando, setApagando] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [fotoAmpliada, setFotoAmpliada] = useState<EventPhoto | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function carregar() {
@@ -66,12 +67,32 @@ export default function PhotoGallery() {
     try {
       await photoService.apagar(foto);
       setFotos((prev) => prev.filter((f) => f.id !== foto.id));
+      if (fotoAmpliada?.id === foto.id) setFotoAmpliada(null);
     } catch {
       alert('Não foi possível apagar essa foto agora.');
     } finally {
       setApagando(null);
     }
   }
+
+  function proximaFoto(delta: 1 | -1) {
+    if (!fotoAmpliada) return;
+    const index = fotos.findIndex((f) => f.id === fotoAmpliada.id);
+    const proximo = fotos[(index + delta + fotos.length) % fotos.length];
+    setFotoAmpliada(proximo);
+  }
+
+  useEffect(() => {
+    if (!fotoAmpliada) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setFotoAmpliada(null);
+      if (e.key === 'ArrowRight') proximaFoto(1);
+      if (e.key === 'ArrowLeft') proximaFoto(-1);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fotoAmpliada]);
 
   return (
     <>
@@ -121,11 +142,18 @@ export default function PhotoGallery() {
         {!loading && fotos.length > 0 && (
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
             {fotos.map((foto) => (
-              <div key={foto.id} className="group relative aspect-square overflow-hidden rounded-xl bg-white/5">
+              <div
+                key={foto.id}
+                onClick={() => setFotoAmpliada(foto)}
+                className="group relative aspect-square cursor-pointer overflow-hidden rounded-xl bg-white/5"
+              >
                 <img src={foto.url} alt="Foto da festa" className="h-full w-full object-cover" loading="lazy" />
                 <div className="absolute inset-0 flex items-end justify-end gap-1.5 bg-gradient-to-t from-black/70 via-transparent to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
                   <button
-                    onClick={() => baixar(foto)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      baixar(foto);
+                    }}
                     disabled={baixando === foto.id}
                     className="rounded-full bg-white/15 p-2 text-white backdrop-blur hover:bg-white/25 disabled:opacity-50"
                     aria-label="Baixar foto"
@@ -134,7 +162,10 @@ export default function PhotoGallery() {
                   </button>
                   {isAdmin && (
                     <button
-                      onClick={() => apagar(foto)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        apagar(foto);
+                      }}
                       disabled={apagando === foto.id}
                       className="rounded-full bg-red-500/25 p-2 text-white backdrop-blur hover:bg-red-500/40 disabled:opacity-50"
                       aria-label="Apagar foto"
@@ -145,6 +176,78 @@ export default function PhotoGallery() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Visualização em tela cheia (lightbox) */}
+        {fotoAmpliada && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+            onClick={() => setFotoAmpliada(null)}
+          >
+            <button
+              onClick={() => setFotoAmpliada(null)}
+              className="absolute right-4 top-4 rounded-full bg-white/10 p-2.5 text-white hover:bg-white/20"
+              aria-label="Fechar"
+            >
+              <X size={20} />
+            </button>
+
+            {fotos.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    proximaFoto(-1);
+                  }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2.5 text-white hover:bg-white/20 sm:left-4"
+                  aria-label="Foto anterior"
+                >
+                  <ChevronLeft size={22} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    proximaFoto(1);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2.5 text-white hover:bg-white/20 sm:right-4"
+                  aria-label="Próxima foto"
+                >
+                  <ChevronRight size={22} />
+                </button>
+              </>
+            )}
+
+            <img
+              src={fotoAmpliada.url}
+              alt="Foto da festa ampliada"
+              onClick={(e) => e.stopPropagation()}
+              className="max-h-[85vh] max-w-full rounded-lg object-contain shadow-2xl"
+            />
+
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-2"
+            >
+              <button
+                onClick={() => baixar(fotoAmpliada)}
+                disabled={baixando === fotoAmpliada.id}
+                className="flex items-center gap-1.5 rounded-full bg-white/15 px-4 py-2 text-sm font-medium text-white backdrop-blur hover:bg-white/25 disabled:opacity-50"
+              >
+                {baixando === fotoAmpliada.id ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                Baixar
+              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => apagar(fotoAmpliada)}
+                  disabled={apagando === fotoAmpliada.id}
+                  className="flex items-center gap-1.5 rounded-full bg-red-500/25 px-4 py-2 text-sm font-medium text-white backdrop-blur hover:bg-red-500/40 disabled:opacity-50"
+                >
+                  {apagando === fotoAmpliada.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                  Apagar
+                </button>
+              )}
+            </div>
           </div>
         )}
       </section>
