@@ -133,7 +133,7 @@ export default function Home() {
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10">
-          <img src={event.imagemBanner} alt="" className="h-full w-full object-cover opacity-70" />
+          <img src={event.imagemBanner} alt="" className="h-full w-full object-cover opacity-70" style={{ objectPosition: 'center 35%' }} />
           <div className="absolute inset-0 bg-gradient-to-b from-ink-950/50 via-ink-950/75 to-ink-950" />
           <div className="absolute inset-0 bg-grid-glow" />
         </div>
