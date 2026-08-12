@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleUpload, type HandleUploadBody, del } from '@vercel/blob/client';
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
+import { del } from '@vercel/blob';
 import { z } from 'zod';
 import { applyCors } from './_lib/cors';
 import { verificarAdmin, verificarAdminPorToken } from './_lib/verificarAdmin';
